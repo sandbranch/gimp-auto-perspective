@@ -29,3 +29,21 @@ foreach t : ['core']
                      dependencies: core_dep),
        timeout: 300)
 endforeach
+
+gimp_dep = dependency('gimp-3.0', version: '>= 3.0.0', required: get_option('plugin'))
+gimpui_dep = dependency('gimpui-3.0', version: '>= 3.0.0', required: get_option('plugin'))
+
+if gimp_dep.found() and gimpui_dep.found()
+  plugindir = get_option('plugindir')
+  if plugindir == ''
+    plugindir = gimp_dep.get_variable(pkgconfig: 'gimplibdir') / 'plug-ins'
+  endif
+  # GIMP 3 loads a plug-in from a folder of its own name
+  executable('gimp-upright',
+    'src/plugin/main.c',
+    dependencies: [core_dep, gimp_dep, gimpui_dep],
+    c_args: ['-Wno-unused-parameter'],
+    install: true,
+    install_dir: plugindir / 'gimp-upright',
+  )
+endif
