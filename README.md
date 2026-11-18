@@ -6,20 +6,29 @@ fit a rotation, lens shifts and a shear that make them so, and transform
 the image. The method is that of darktable's "rotate and perspective"
 module (ashift, after ShiftN).
 
-**Status: skeleton.** Nothing is corrected yet. The plan is in
-[PLAN.md](PLAN.md), for review before the real work starts; the
-research behind it in [docs/research.md](docs/research.md) and
+**Status: the core works, the plug-in does not apply it yet.** Line
+detection (LSD), the fit (ashift's model, cost and RANSAC, our own
+Nelder-Mead), the crop and the warp run in the core and on the command
+line, tested against darktable's homography, LSD 1.6's output and
+facades rendered through a camera with known angles: after the fit the
+facade edges are straight within 0.02 degrees (PLAN.md, section 5.2).
+The plan is in [PLAN.md](PLAN.md); the research behind it in
+[docs/research.md](docs/research.md) and
 [docs/patents.md](docs/patents.md).
 
 ![Image > Transform > Auto Perspective...](docs/transform-menu.png)
 
 ## What is there
 
-- `src/core/`: the interface of the core (`perspective.h`): line segments,
-  the four parameters, the modes, the fit. Line classification works;
-  detection finds nothing and the fit returns the identity.
-- `tools/auto-perspective-cli.c`: the core on the command line (PFM images, or
-  guide lines from a text file), for the tests.
+- `src/core/`: the core, without GIMP: `lsd.c` (LSD, a C port of
+  OpenCV's BSD licensed implementation), `model.c` (ashift's homography
+  and cost), `simplex.c` (Nelder-Mead), `ransac.c` (outliers),
+  `crop.c` (the largest rectangle, and the warp), `perspective.c`
+  (detection, merging of collinear segments, the fit and the automatic
+  mode); the interface is `perspective.h`.
+- `tools/auto-perspective-cli.c`: the core on the command line (PFM
+  images, or guide lines from a text file): `lines`, `fit`, `warp`,
+  `cost`, `lsd`.
 - `src/plugin/main.c`: **Image > Transform > Auto Perspective...**
   (`plug-in-auto-perspective`) with its modes (Automatic, Vertical, Horizontal,
   Full, Rotation only, Guided by a path), crop, apply-to and
@@ -27,7 +36,12 @@ research behind it in [docs/research.md](docs/research.md) and
   the path and calls the core, so for now the image stays as it is.
 - Tests, all isolated from your own folders:
   - `tests/check.sh`: unit tests of the core, as usual and under
-    AddressSanitizer and UBSan, and `auto-perspective-cli` under the sanitizers.
+    AddressSanitizer and UBSan, `auto-perspective-cli` under the
+    sanitizers, and `tests/recovery.py`: facades rendered through a
+    camera with known angles, fitted, and measured on their true edges.
+  - `tests/lsd-ref.sh`: our LSD against the reference LSD 1.6 (fetched
+    at test time into tests/output, AGPL, never shipped); not part of
+    `run.sh`.
   - `tests/gimp-test.sh` (also `--asan`): the plug-in in GIMP without a
     window: registration, and every mode leaves the image unchanged.
   - `tests/gui/gui-test.sh`: the menu and the dialog in GIMP's window on
@@ -56,6 +70,10 @@ the unit tests. Nothing here installs into your GIMP unless you run
 
 ## Licence
 
-GPL-3.0-or-later (COPYING), compatible with darktable's ashift
-(GPL-3.0-or-later), which the real implementation will port with
-attribution. Copyright 2026 David.
+GPL-3.0-or-later (COPYING). Parts are ported, with attribution in each
+file, from darktable's ashift (GPL-3.0-or-later): the homography, the
+cost, RANSAC and the crop. `src/core/lsd.c` is a port of OpenCV's
+`lsd.cpp` and keeps its 3-clause BSD licence (its header and
+docs/research.md have the history of that file's licence).
+`tests/ref/ashift-homography.c` is darktable's code, copied unchanged
+as a test oracle. Copyright 2026 David.

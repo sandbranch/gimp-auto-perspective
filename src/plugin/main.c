@@ -312,7 +312,7 @@ auto_perspective_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage 
   g_clear_object (&path);
 
   gimp_progress_set_text ("Auto Perspective: fitting");
-  status = up_fit (lines, count, w, h, (UpMode) mode, &params, &fit);
+  status = up_fit (lines, count, w, h, (UpMode) mode, NULL, &params, &fit);
   if (guided)
     g_free (lines);
   else
@@ -324,8 +324,6 @@ auto_perspective_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage 
    * up_homography's matrix on the layer or on every item of the image in
    * one undo group, then the canvas; gimp_context_pop. The skeleton's fit
    * is always neutral, so nothing is changed. */
-  if (status == UP_OK && ! up_params_neutral (&params))
-    g_warning ("auto-perspective: a non-neutral fit, but applying it is not implemented yet");
   gimp_progress_end ();
 
   ret = gimp_procedure_new_return_values (procedure, GIMP_PDB_SUCCESS, NULL);

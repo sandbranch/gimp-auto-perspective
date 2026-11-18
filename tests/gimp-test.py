@@ -127,9 +127,9 @@ def tests():
                 ok = r.index(0) == Gimp.PDBStatusType.SUCCESS
                 check(ok, '%s: success' % what)
                 if ok:
-                    check(r.index(1) in ('ok', 'not-enough-lines') and
-                          all(r.index(i) == 0.0 for i in range(2, 6)),
-                          '%s: status %s, neutral parameters' % (what, r.index(1)))
+                    # (the fit runs; applying it is the next step)
+                    check(r.index(1) in ('ok', 'not-enough-lines'),
+                          '%s: status %s' % (what, r.index(1)))
                 check(state(image) == before, '%s: the image is unchanged' % what)
                 check(not image.is_dirty(), '%s: the image is not dirty' % what)
                 image.delete()

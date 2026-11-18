@@ -82,9 +82,13 @@ with attribution is compatible.
    sqrt(1 - (1 - v)(1 - h)) x 10^6.
 8. **The fit** (`nmsfit`): Nelder-Mead simplex over the chosen subset
    of parameters, each mapped through a logit onto its range (so the
-   simplex is unbounded but the parameters are not): rotation +-10
-   degrees, lens shifts +-1, shear +-0.2 (the "soft" ranges for manual
-   use are wider). Epsilon 10^-3, scale 1, at most 400 iterations.
+   simplex is unbounded but the parameters are not). Corrected
+   2026-11-18: the ranges the fit uses are the "soft" ones, rotation
+   +-180 degrees, lens shifts +-2, shear +-0.5 (`g->rotation_range =
+   ROTATION_RANGE_SOFT` and so on in `gui_init` and `reload_defaults`,
+   at commit 131eca7025 of 2026-11-15); +-10, +-1, +-0.2 (the defines
+   without _SOFT) are not what `nmsfit` gets. Epsilon 10^-3, scale 1, at
+   most 400 iterations.
    Results: success, not enough lines (fewer than 2 of a needed kind),
    did not converge, or "insane": the transformed image would cover
    more than 4 times the original area.
@@ -135,6 +139,39 @@ So three routes: (a) take LSD 1.6 as darktable does (AGPL part inside a
 GPL-3 plug-in); (b) port OpenCV's BSD-licensed C++ to C; (c) write LSD
 from the paper, with the MIT NFA code. The algorithm is fully described
 in the IPOL article. PLAN.md recommends (b) or (c) and asks.
+
+### OpenCV's lsd.cpp, checked 2026-11-18 (route (b) taken)
+
+- The file today (`modules/imgproc/src/lsd.cpp`, branch 4.x, last
+  commit ecb072401a of 2026-11-17): the OpenCV 3-clause BSD licence
+  header, "Copyright (C) 2013, OpenCV Foundation"; no other licence in
+  it.
+- History (GitHub API, commits touching the file): removed on
+  2019-03-01 by commit 3ba49ccecc, "imgproc: removed LSD code due
+  original code license conflict". The trigger was opencv_contrib issue
+  2016 (a "Compare doubles by relative error" section copied from the
+  AGPL LSD code); in opencv_contrib issue 2524 (2020-05-10) an OpenCV
+  maintainer wrote that "almost all removed code ... has license
+  conflict" as a derived work.
+- Restored on 2021-10-01 by commit 9b76872708 ("restore LSD", pull
+  request 20797, released in 4.5.4), a revert of the removal, plus
+  259c39a63a (documentation). The restoring PR followed two things in
+  issue 2524: the LSD author, Rafael Grompone von Gioi, published his
+  NFA code under the MIT licence
+  (github.com/rafael-grompone-von-gioi/binomial_nfa, LICENSE: MIT,
+  "Copyright (c) 2007-2021 rafael grompone von gioi"), and on
+  2021-05-10 he wrote there: "LSD was already in OpenCV before. Why not
+  using the same implementation and only updating the parts where
+  there were doubts about the license? This should be minimal work."
+  The maintainer then agreed to the revert ("Sure!").
+- So: OpenCV ships the code under BSD on the strength of the author's
+  public consent (he is the copyright holder of LSD 1.6, "Copyright (c)
+  2007-2011 rafael grompone von gioi"); there is no formal relicensing
+  document for the parts other than the NFA. The floating point
+  comparison of issue 2016 came from Bruce Dawson's blog, which he
+  relicensed in 2021 (same issue); our `lsd.c` has its own version.
+- Our port: `src/core/lsd.c`, C, keeping OpenCV's BSD notice and this
+  history in its header, licensed BSD-3-Clause like its source.
 
 ## 3. Alternative: the Hough transform
 

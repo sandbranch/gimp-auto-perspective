@@ -3,7 +3,8 @@
 under a sky) seen by a pinhole camera that is turned by known angles.
 
     tests/synth.py [--size=W,H] [--roll=DEG] [--pitch=DEG] [--yaw=DEG]
-                   [--focal=MM] [--truth=FILE] out.pfm
+                   [--focal=MM] [--noise=SIGMA] [--clutter=N] [--seed=S]
+                   [--truth=FILE] out.pfm
 
 The facade is a plane facing the camera; with all angles zero its
 vertical edges are vertical and its horizontal edges horizontal in the
@@ -12,7 +13,10 @@ image. --roll turns the camera about its axis (a tilted horizon),
 turns it right (positive) or left (converging horizontals). --focal is
 the focal length in mm on a 36 mm wide sensor (28 mm, as ashift assumes
 without EXIF data). --truth writes the angles and the camera rotation,
-for the recovery tests of PLAN.md.
+for the recovery tests of PLAN.md (tests/recovery.py). --noise adds
+Gaussian noise of that standard deviation (gray values 0..1), --clutter
+draws N thin bars at random angles in front of the facade (wires and
+poles that are no part of it), both from the random seed --seed.
 
 The picture is rendered by casting a ray through every pixel (4x4
 samples) onto the facade, so it does not depend on the core's own
@@ -67,6 +71,29 @@ def render(w, h, roll, pitch, yaw, focal_mm, distance=20.0, ss=4):
     return out / (ss * ss), f, R
 
 
+def add_clutter(img, n, rng):
+    """n thin dark or light bars at random positions and angles, drawn
+    with 4x4 supersampling over the image"""
+    h, w = img.shape
+    ss = 4
+    ys, xs = np.mgrid[0:h * ss, 0:w * ss]
+    ys = (ys + 0.5) / ss
+    xs = (xs + 0.5) / ss
+    for _ in range(n):
+        cx, cy = rng.uniform(0, w), rng.uniform(0, h)
+        ang = rng.uniform(0, math.pi)
+        length = rng.uniform(0.2, 0.6) * max(w, h)
+        width = rng.uniform(1.0, 3.0)
+        value = rng.choice([0.05, 0.95])
+        dx, dy = math.cos(ang), math.sin(ang)
+        along = (xs - cx) * dx + (ys - cy) * dy
+        across = -(xs - cx) * dy + (ys - cy) * dx
+        mask = (np.abs(along) < length / 2) & (np.abs(across) < width / 2)
+        cover = mask.reshape(h, ss, w, ss).mean(axis=(1, 3))
+        img = img * (1 - cover) + value * cover
+    return img
+
+
 def write_pfm(path, img):
     h, w = img.shape
     with open(path, 'wb') as fp:
@@ -81,11 +108,19 @@ def main():
     ap.add_argument('--pitch', type=float, default=0.0)
     ap.add_argument('--yaw', type=float, default=0.0)
     ap.add_argument('--focal', type=float, default=28.0)
+    ap.add_argument('--noise', type=float, default=0.0)
+    ap.add_argument('--clutter', type=int, default=0)
+    ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--truth')
     ap.add_argument('out')
     a = ap.parse_args()
     w, h = (int(s) for s in a.size.split(','))
     img, f, R = render(w, h, a.roll, a.pitch, a.yaw, a.focal)
+    rng = np.random.default_rng(a.seed)
+    if a.clutter:
+        img = add_clutter(img, a.clutter, rng)
+    if a.noise:
+        img = img + rng.normal(0.0, a.noise, img.shape)
     write_pfm(a.out, img)
     if a.truth:
         with open(a.truth, 'w') as fp:

@@ -11,6 +11,11 @@ math_dep = cc.find_library('m', required: false)
 # the core: line detection and fitting; no GIMP, no GEGL
 core_lib = static_library('perspective-core',
   'src/core/perspective.c',
+  'src/core/lsd.c',
+  'src/core/model.c',
+  'src/core/simplex.c',
+  'src/core/ransac.c',
+  'src/core/crop.c',
   dependencies: math_dep,
 )
 core_dep = declare_dependency(link_with: core_lib,
@@ -26,6 +31,7 @@ auto_perspective_cli = executable('auto-perspective-cli', 'tools/auto-perspectiv
 # unit tests of the core: meson test, or tests/check.sh (also under ASan)
 foreach t : ['core']
   test(t, executable('test-' + t, 'tests/unit/test-' + t + '.c',
+                     'tests/ref/ashift-homography.c',
                      dependencies: core_dep),
        timeout: 300)
 endforeach

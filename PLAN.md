@@ -6,11 +6,16 @@ so, and apply it. A port of the method of darktable's "rotate and
 perspective" module (ashift, GPL-3.0-or-later, after ShiftN), as a GIMP
 3 plug-in with a C core, in the shape of gimp-fusion and gimp-lqr-tng.
 
-**Status: skeleton, for review.** Nothing is corrected yet. What exists
-(README.md has the list) is the interface of the core, the plug-in's
-registration and dialog, and tests that pass. The facts this plan rests
-on, with sources: [docs/research.md](docs/research.md) and
-[docs/patents.md](docs/patents.md). Questions for you are at the end.
+**Status (2026-11-18): the core works** (steps 1 to 3 of section 6:
+LSD, model, fit, RANSAC, crop, warp, with their tests and the measured
+recovery numbers in 5.2). The facts this plan rests on, with sources:
+[docs/research.md](docs/research.md) and
+[docs/patents.md](docs/patents.md). The open questions of section 7 got
+defaults while David was away; each is marked there and easy to change.
+
+**David: please review [docs/patents.md](docs/patents.md) before a
+release** (question 2: all modes were implemented with the ashift
+method, nothing from Adobe's perception criteria).
 
 ## 1. What the user sees
 
@@ -94,10 +99,27 @@ on the test photos), then scaled back. Segments along the border are
 dropped. The detector sits behind `up_detect_lines`, so Hough (OpenCV
 style) can be tried against it on the same images.
 
-Which LSD code: see open question 1. Recommended: port OpenCV's
-BSD-licensed `lsd.cpp` to C (or write it from the paper, with the MIT
-NFA code by the LSD author), so the plug-in stays plain GPL-3.0; check
-it against the IPOL reference output in the tests.
+Which LSD code (question 1, default chosen): a C port of OpenCV's
+`lsd.cpp`, 3-clause BSD, in `src/core/lsd.c` with its licence and
+history (research.md, section 2, has what was checked). Two details
+follow the LSD paper and LSD 1.6 rather than OpenCV, because they were
+measured to matter against LSD 1.6's own output on its example image
+(tests/lsd-ref.py): the Gaussian subsampling places output sample x at
+input x / scale (agreement 44 % before, 89.7 % after), and the pseudo
+ordering scans column after column (89.9 %); segments of 40 pixels or
+more agree 95.6 %, the rest are short ones of low significance where
+OpenCV's code differs from LSD 1.6.
+
+**Merging collinear segments** (ours, not in ashift): after LSD, the
+segments of one kind that lie on one line (within 2 degrees, both ends
+within 1.5 pixels of the line so far) become one line, the weighted
+total least squares line through their ends, with the summed weight.
+Measured on the synthetic facades: short segments (window heads of
+about 20 pixels) had their angle biased by 0.13 degrees on average, all
+the same way, by the corners at their ends, while the long roof line
+was within 0.003; with merging the largest deviation after a Full fit
+went from 0.24 to 0.012 degrees (section 5.2). Weighting by length
+squared instead was tried and is worse: long clutter lines take over.
 
 ### 3.2 Classification and outliers
 
@@ -110,7 +132,11 @@ direction. The lines RANSAC rejects stay visible (grey) in the preview.
 
 ashift's homography of rotation, vertical and horizontal lens shift and
 shear, with its generic lens model (28 mm equivalent, lens dependence 0,
-aspect 1) by default. `up_homography` returns it as the 3x3 matrix that
+aspect 1) by default. A fact found while porting: with lens dependence
+0 the focal length has no effect at all on ashift's matrix (it only
+enters the compression factors r_v and r_h, which are then 1), so an
+EXIF focal length (question 6) matters only together with a lens
+dependence above 0. `up_homography` returns it as the 3x3 matrix that
 `gimp_item_transform_matrix` takes, in image pixel coordinates. The
 port keeps ashift's matrices step by step (so its parameters and ours
 mean the same), with the attribution in the file. An option: the focal
@@ -120,10 +146,14 @@ mm; ashift has this as its "specific" lens model (open question 6).
 ### 3.4 The fit
 
 ashift's cost (research.md, section 1, step 7) minimised by Nelder-Mead over the
-parameters the mode frees, each through a logit onto ashift's ranges
-(rotation +-10 degrees, shifts +-1, shear +-0.2); fewer than 2 lines of a
-needed kind is "not enough lines", an area growth over 4 times is
-"insane". Both are reported, never applied.
+parameters the mode frees, each through a logit onto its range: those
+darktable's ashift fits with today, rotation +-180 degrees, shifts +-2,
+shear +-0.5 (its "soft" ranges; research.md said +-10, +-1, +-0.2,
+which are the ranges of its sliders' defaults; both gave the same
+results in 5.2, and one Full case there needs 9.3 degrees). The
+Nelder-Mead is our own (src/core/simplex.c), with ashift's settings.
+Fewer than 2 lines of a needed kind is "not enough lines", an area
+growth over 4 times is "insane". Both are reported, never applied.
 
 **Automatic** is ours; ashift leaves the choice to the user. Proposal:
 fit Vertical; if there are enough horizontal lines, fit Full as well,
@@ -132,7 +162,12 @@ the image (crop area); otherwise Vertical; with too few vertical lines,
 Horizontal; with too few of both, Rotation only if any line is left.
 The thresholds come from the synthetic and real tests (open question
 4). This is the part where Adobe's Auto "balances"; ours is a plain
-rule on costs and areas.
+rule on costs and areas. Implemented (default chosen, question 4):
+Full wins if its cost over all lines is below half of Vertical's and
+its largest crop keeps at least half of the image (`AUTO_COST_RATIO`,
+`AUTO_MIN_AREA` in perspective.c); on the synthetic facades it picks
+Vertical for pitch, Full for yaw and for pitch with yaw (5.2). Not yet
+tuned on real photos (step 6).
 
 ### 3.5 The guided mode
 
@@ -189,19 +224,33 @@ stopped. `tests/run.sh` runs it all. What exists now is marked (done).
 
 - (done) classification, mode names, fit status and the identity for
   neutral parameters, bad input gives UP_ERROR.
-- The homography: identity for zero; each parameter alone against
-  ashift's `_homography` compiled as a test oracle
-  (`tests/ref/ashift-homography.c`, copied with attribution), to 1e-6
-  relative; the inverse round trip.
-- The cost: zero for perfect lines; known values for a line tilted by
-  a known angle.
-- Nelder-Mead: known minima of analytic functions (Rosenbrock), the
-  logit mapping at its bounds.
-- LSD: on synthetic edges, segments found at known positions (end
-  points within 1 pixel, angle within 0.1 degrees); against the IPOL
-  LSD 1.6 reference on the same images (the reference fetched and
-  built in tests/output at test time, never shipped).
-- Crop: a known quadrilateral with a known largest rectangle.
+- (done) The homography: identity for zero; each parameter alone and
+  together against ashift's `_homography` compiled as a test oracle
+  (`tests/ref/ashift-homography.c`, copied unchanged with attribution):
+  mapped corners agree within 1.6e-7 of the image size (ashift computes
+  in float, we in double); the inverse round trip within 7e-15; the
+  sign of the rotation.
+- (done) The cost: zero for perfect lines; 1e6 sin (1 degree) for one
+  line 1 degree off, and the combination of both kinds.
+- (done) Nelder-Mead: Rosenbrock, a 4 dimensional bowl, non convergence
+  reported; the logit mapping at and beyond its bounds.
+- (done) The fit recovers the parameters from exact lines in every mode
+  (rotation within 0.01 degrees, the rest within 1e-3), and gives the
+  same bits twice; RANSAC drops the one line off the vanishing point.
+- (done) LSD: on anti-aliased edges at known positions and angles: x
+  within 0.03 pixels, angle within 0.004 degrees; nothing on flat or
+  noise images. Against LSD 1.6: `tests/lsd-ref.sh` (not part of
+  `run.sh`: it fetches the AGPL reference at test time) compares with
+  LSD 1.6's own output on its example image (numbers in 3.1) and,
+  built in tests/output, on the facades. The image comparison was run;
+  building and running LSD 1.6 itself was blocked by the session's
+  permissions on 2026-11-18 and has not been run yet.
+- (done) Crop: rotated rectangles against the closed form of the
+  largest axis aligned rectangle and of the largest one of the same
+  shape: 98.6 to 99.7 % of the area (rounding inwards to whole pixels),
+  always inside; the bounding box for "none".
+- (done) Warp: the identity and whole pixel shifts give the input back
+  for nearest, linear and cubic.
 
 ### 5.2 Recovery of known parameters (synthetic, numeric)
 
@@ -219,6 +268,19 @@ drawn in front):
   with noise and clutter.
 - **Rotation**: with pitch and yaw zero, the fitted rotation equals the
   roll within 0.05 degrees.
+
+Implemented as `tests/recovery.py` (run by check.sh). Measured
+2026-11-18, 480x360 and odd sizes, focal 18, 28 and 50 mm:
+
+| Check | Target | Measured |
+|---|---|---|
+| Vertical, clean (45 cases: pitch -20..20, roll -5..3) | < 0.1 | 0.016 degrees |
+| Full, clean (6 cases, pitch and yaw up to 20, roll up to 5, and 2 odd sizes) | < 0.1 | 0.012 degrees |
+| Vertical, noise 0.03 and 6 clutter bars | < 0.3 | 0.024 degrees |
+| Full, noise and clutter | < 0.3 | 0.020 degrees |
+| Rotation = roll (5 rolls, Rotation and Vertical) | < 0.05 | 0.0011 degrees |
+| Auto: pitch, yaw, both, roll, noisy pitch | the right mode | vertical, full, full, vertical, vertical |
+| Blank, noise only, one edge, vanishing point in the frame | not-enough-lines, identity | all four |
 - **Mode behaviour**: Vertical leaves horizontal convergence alone,
   Horizontal the vertical one, Rotation only changes no convergence;
   Automatic picks what the case needs.
@@ -264,10 +326,10 @@ megapixel images. Screenshots for the README. Never the user's photos.
 
 ## 6. Steps
 
-1. **LSD** in the core, with its tests (5.1). `auto-perspective-cli lines`.
-2. **Model and fit**: homography with the ashift oracle, cost,
+1. (done) **LSD** in the core, with its tests (5.1). `auto-perspective-cli lines`.
+2. (done) **Model and fit**: homography with the ashift oracle, cost,
    Nelder-Mead, RANSAC; the recovery tests (5.2). `auto-perspective-cli fit`.
-3. **Crop and warp** in the core: `auto-perspective-cli warp`; crop tests.
+3. (done) **Crop and warp** in the core: `auto-perspective-cli warp`; crop tests.
 4. **Applying in GIMP** (section 4), non-interactive; GIMP tests (5.4).
 5. **The dialog with the preview** and the fine tuning; GUI tests.
 6. **Automatic mode** rule tuned on synthetic and real images (5.3).
@@ -282,30 +344,58 @@ megapixel images. Screenshots for the README. Never the user's photos.
    combination); (b) port OpenCV's BSD-licensed `lsd.cpp` to C; (c)
    write LSD from the IPOL paper with the author's MIT NFA code. I
    recommend (b) or (c) for a plain GPL plug-in. Which?
+   *Default chosen 2026-11-18 while David was away; easy to change:* (b), the plug-in stays plain GPL-3.0-or-later, darktable's
+   AGPL LSD is not used. Checked first (research.md, section 2): the
+   file header of OpenCV's current lsd.cpp is the 3-clause BSD licence;
+   OpenCV removed the file on 2019-03-01 (commit 3ba49ccecc) because
+   parts came from the AGPL LSD 1.6, and restored it unchanged on
+   2021-10-01 (commit 9b76872708, pull request 20797, release 4.5.4)
+   after the LSD author published the NFA code under MIT and wrote in
+   opencv_contrib issue 2524 that OpenCV should keep its implementation
+   and only update the doubtful parts. So the BSD licence of the file
+   rests on the author's public consent in that issue, not on a formal
+   relicensing of the rest of LSD 1.6; OpenCV accepted that. If you want
+   to avoid even that, route (c) (writing LSD from the paper) remains;
+   `src/core/lsd.c` is one file behind one function.
 2. **Patents.** Adobe's US9008460 and US9582855 ("homography ...
    according to human perception-based criteria") are active until
    2033 (docs/patents.md); the ashift method is older (ShiftN 2006,
    Kodak 1999) and does not do the calibration steps of the other three.
    Do you want to go ahead with all modes, start with the guided and
    manual ones, or have it looked at first?
+   *Default chosen 2026-11-18 while David was away; easy to change:* all modes, with the ashift/ShiftN method only (published,
+   older, in darktable since 2016); nothing of Adobe's "human
+   perception-based criteria" (no eye level, no camera calibration, no
+   perception energy). **David should review docs/patents.md before a
+   release.**
 3. **The name.** Decided 2026-11-18: "Auto Perspective..." and the
    repository gimp-auto-perspective (it was gimp-upright; "Upright" is
    Adobe's name for its feature).
 4. **Automatic mode.** Is the rule in 3.4 (Vertical unless Full is
    clearly better and keeps enough of the image) what you want, or
    should Automatic simply be ashift's "fit both" (Full with shear)?
+   *Default chosen 2026-11-18 while David was away; easy to change:* the rule of 3.4, implemented with the thresholds stated
+   there.
 5. **Apply to.** The whole image by default (all layers, canvas cropped),
    or the selected layer?
+   *Default chosen 2026-11-18 while David was away; easy to change:* the whole image.
 6. **Lens model.** Generic 28 mm always (as ashift's default), or the
    focal length from EXIF when the image has it, with the "lens
    dependence" and aspect controls of ashift's specific model?
+   *Default chosen 2026-11-18 while David was away; easy to change:* the EXIF focal length when the image has one, otherwise
+   the generic 28 mm. (As found in 3.3, it changes the result only with
+   a lens dependence above 0.)
 7. **Fine tuning sliders** in the dialog after the fit (like ashift):
    yes, or fit only?
+   *Default chosen 2026-11-18 while David was away; easy to change:* yes.
 8. **Crop default.** Largest rectangle (ashift's default), same shape,
    or none?
+   *Default chosen 2026-11-18 while David was away; easy to change:* the largest rectangle.
 9. **Selection.** Ignore it (transform everything, and the selection
    with it), or refuse to run with a selection, or correct only the
    selected part (GIMP's floating selection behaviour)?
+   *Default chosen 2026-11-18 while David was away; easy to change:* transform the selection along with the image.
 10. **GEGL op later.** A `gegl:` perspective op for upstream GEGL would
     only become non-destructive in GIMP once transform filters are
     allowed as layer filters; worth doing now or not at all?
+    *Default chosen 2026-11-18 while David was away; easy to change:* not now.
