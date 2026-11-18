@@ -389,8 +389,31 @@ def tests():
     image.delete()
 
 
+def real_photo():
+    """if tests/real.sh fetched it: a real photo through the plug-in, timed"""
+    import time
+    from gi.repository import Gio
+    path = os.path.join(os.environ.get('UT_REAL', ''), 'Kirkgate_Market_02.jpg')
+    if not os.path.exists(path):
+        print('UT SKIP the real photo: %s not fetched (tests/real.sh)' % path, flush=True)
+        return
+    image = Gimp.file_load(Gimp.RunMode.NONINTERACTIVE, Gio.File.new_for_path(path))
+    w, h = image.get_width(), image.get_height()
+    t = time.monotonic()
+    r = run(image, mode='auto', crop='largest')
+    secs = time.monotonic() - t
+    ok = r.index(0) == Gimp.PDBStatusType.SUCCESS
+    check(ok and r.index(1) == 'ok' and (image.get_width(), image.get_height()) != (w, h),
+          'a real photo (%s, %dx%d): %s, mode %s, rotation %.3f, shift-v %.4f, now %dx%d, in %.2f s'
+          % (os.path.basename(path), w, h, r.index(1) if ok else r.index(0).value_nick,
+             r.index(6) if ok else '-', r.index(2) if ok else 0, r.index(3) if ok else 0,
+             image.get_width(), image.get_height(), secs))
+    image.delete()
+
+
 try:
     tests()
+    real_photo()
 except Exception:
     import traceback
     traceback.print_exc()

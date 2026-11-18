@@ -89,11 +89,11 @@ done
 
 # shellcheck disable=SC2086
 gimp_run --timeout=600 $run_args \
-  --env=GIMP3_DIRECTORY="$profile" --env=UT_IN="$g/in" --env=UT_OUT="$g/out" -- \
+  --env=GIMP3_DIRECTORY="$profile" --env=UT_IN="$g/in" --env=UT_OUT="$g/out" --env=UT_REAL="$out/real" -- \
   gimp-console-3.2 --new-instance --no-interface --no-data --no-fonts \
   --batch-interpreter python-fu-eval -b "exec(open('$here/gimp-test.py').read())" \
   >"$g/gimp.log" 2>&1
-grep -E '^UT FAIL|Traceback|^  File|Error' "$g/gimp.log"
+grep -E '^UT (FAIL|SKIP)|Traceback|^  File|Error' "$g/gimp.log"
 echo "UT $(grep -c '^UT PASS' "$g/gimp.log") checks passed"
 grep -q '^UT failures: 0$' "$g/gimp.log" || status=1
 if grep -E 'gimp-auto-perspective.*(WARNING|CRITICAL)|inconsistent state' "$g/gimp.log"; then

@@ -313,6 +313,35 @@ detected vertical lines deviate less than 0.5 degrees; the crop keeps a
 stated share; times and peak memory (VmHWM, as gimp-fusion) for 24
 megapixel images. Screenshots for the README. Never the user's photos.
 
+Implemented as `tests/real.sh` and `tests/real.py` (not in `run.sh`:
+the first run needs the network). Licences read again on each file page
+on 2026-11-18 (wikitext template and the API's LicenseShortName): CC0,
+public domain, CC0. Measured 2026-11-18 with auto-perspective-cli:
+
+| Photo | Mode | Result | Crop keeps | Strongest 20 verticals afterwards |
+|---|---|---|---|---|
+| Kirkgate Market, 3072x2304 | vertical, auto (picks vertical) | rotation -4.09, shift-v 0.341 | 78 % | weighted median 0.257, largest 1.21 degrees |
+| Stolbergs, 1536x1024 | vertical, auto (picks vertical) | rotation -3.74, shift-v 0.190 | 83 % | median 0.079, largest 0.75 |
+| Stolbergs | full | "insane": the receding street would need more than 4 times the area; nothing applied | | |
+
+The largest values are street furniture: on Kirkgate the worst line is
+a pole on the right, and the two edges of the tapering lamp post lean
+by design; the facade's long edges are within 0.02 to 0.17 degrees.
+So the check is the weighted median below 0.5 degrees (it was first
+the largest of the 10 strongest; changed after seeing these data, and
+said so here). Time and memory (VmHWM measured by the CLI itself): 0.34
+s and 164 MiB for the 7 megapixel photo; Kirkgate scaled to 6000x4000,
+24 megapixels: 0.86 s, 551 MiB (the CLI holds the RGB image as floats,
+275 MiB; the plug-in reads only the gray). In GIMP (tests/gimp-test.sh,
+when the photo is there) the whole run on Kirkgate, fit, transform and
+crop, takes 0.98 s. Before and after previews are written into
+tests/output/real (not committed: README screenshots still to do).
+The third photo, Iwase Bunko Library (the horizontal case), could not
+be fetched on 2026-11-18: upload.wikimedia.org answered 429 (too many
+requests) to four tries over several minutes; `tests/real.sh` checks it
+by the SHA-1 Commons publishes and skips it while it is missing. So the
+Horizontal and Full modes have not yet been measured on a real photo.
+
 ### 5.4 GIMP without a window (`tests/gimp-test.sh`, also `--asan`)
 
 - (done) registration: the procedure, the menu path, the arguments,
@@ -368,6 +397,8 @@ megapixel images. Screenshots for the README. Never the user's photos.
    the offsets alone are applied (tested in 5.4). Detection runs in the
    dialog once, when it opens; the fits run again on every change.
 6. **Automatic mode** rule tuned on synthetic and real images (5.3).
+   Started: on the two real photos measured it picks Vertical, which
+   is right for both; still to do with the third photo and more.
 7. README with screenshots, then offer upstream (GIMP issue #2026 is
    the natural place to mention it).
 

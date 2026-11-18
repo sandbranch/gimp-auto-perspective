@@ -26,6 +26,10 @@
  *       implementation (tests/lsd-ref.sh)
  *   auto-perspective-cli version
  *
+ * --stats (any command but lsd) adds "seconds" (wall clock) and
+ * "vmhwm-kib" (the peak resident memory, from /proc/self/status) at the
+ * end.
+ *
  * MODE is auto, vertical, horizontal, full or rotation; --focal the
  * focal length in mm (35 mm equivalent), default 28 (ashift's generic
  * lens). Images are PFM (PF: RGB, Pf: gray, float, bottom row first), as
@@ -41,6 +45,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+/* the peak resident memory of this process, KiB (0 if unknown) */
+static long
+vmhwm_kib (void)
+{
+  FILE *f = fopen ("/proc/self/status", "r");
+  char  line[256];
+  long  kib = 0;
+
+  if (! f)
+    return 0;
+  while (fgets (line, sizeof line, f))
+    if (! strncmp (line, "VmHWM:", 6))
+      kib = atol (line + 6);
+  fclose (f);
+  return kib;
+}
+
+static double
+now (void)
+{
+  struct timespec t;
+  clock_gettime (CLOCK_MONOTONIC, &t);
+  return t.tv_sec + 1e-9 * t.tv_nsec;
+}
 
 static float *
 read_pfm (const char *path, int *w, int *h, int *c)
@@ -217,8 +247,9 @@ main (int argc, char **argv)
   UpParams    given = { 0 };
   const char *lines_file = NULL, *image = NULL, *output = NULL, *cmd;
   UpLine     *lines = NULL;
-  int         count = 0, w, h, c, have_params = 0, status = 0;
+  int         count = 0, w, h, c, have_params = 0, status = 0, stats = 0;
   float      *img, *gray;
+  double      t0 = now ();
 
   up_lens_generic (&lens);
   if (argc < 2)
@@ -281,6 +312,8 @@ main (int argc, char **argv)
         }
       else if (! strcmp (a, "-o") && i + 1 < argc)
         output = argv[++i];
+      else if (! strcmp (a, "--stats"))
+        stats = 1;
       else if (a[0] == '-' || image)
         return usage ();
       else
@@ -373,5 +406,7 @@ main (int argc, char **argv)
   free (lines);
   free (gray);
   free (img);
+  if (stats)
+    printf ("seconds %.3f\nvmhwm-kib %ld\n", now () - t0, vmhwm_kib ());
   return status;
 }

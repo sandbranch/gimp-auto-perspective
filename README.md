@@ -15,8 +15,10 @@ through a camera with known angles: after the fit the facade edges are
 straight within 0.02 degrees (PLAN.md, section 5.2). The plug-in
 applies the result to the whole image (layers, channels, paths, the
 selection) or to the layer, in one undo group, and crops; in GIMP the
-facade's true edges come out vertical within 0.005 degrees (5.4). Not
-yet tried on real photos.
+facade's true edges come out vertical within 0.005 degrees (5.4). On
+two freely licensed real photos it straightens the verticals (weighted
+median of the strongest lines afterwards 0.08 and 0.26 degrees) in
+under a second (5.3).
 The plan is in [PLAN.md](PLAN.md); the research behind it in
 [docs/research.md](docs/research.md) and
 [docs/patents.md](docs/patents.md).
@@ -49,6 +51,11 @@ The plan is in [PLAN.md](PLAN.md); the research behind it in
   - `tests/lsd-ref.sh`: our LSD against the reference LSD 1.6 (fetched
     at test time into tests/output, AGPL, never shipped); not part of
     `run.sh`.
+  - `tests/real.sh`: three freely licensed facades from Wikimedia
+    Commons (CC0 and public domain, the licence read on each file page;
+    fetched into tests/output, never committed), fitted and corrected,
+    with time and peak memory; not part of `run.sh` (it needs the
+    network once).
   - `tests/gimp-test.sh` (also `--asan`): the plug-in in GIMP without a
     window: registration, the same parameters and pixels as the command
     line, paths, channels and the selection, every mode and format.
