@@ -16,14 +16,6 @@ out=$tests/output/gui
 devtools=${GIMP_PLUGIN_DEVTOOLS:-$src/../gimp-devtools}
 cdp="node $devtools/gui/cdp.mjs"
 view=size:${GUI_VIEW:-1400,900}
-# the Flatpak GIMP when it is installed, else the native one
-# (GIMP_FLATPAK=0 or 1 chooses); start.sh gets it from here
-gimp_mode=--native
-if [ "${GIMP_FLATPAK:-}" = 1 ] ||
-   { [ "${GIMP_FLATPAK:-}" != 0 ] && flatpak info org.gimp.GIMP >/dev/null 2>&1; }; then
-    gimp_mode=--flatpak
-fi
-export gimp_mode
 
 chrome=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
 [ -n "$chrome" ] || { echo "GUI SKIP gui: no Chrome or Chromium"; exit 0; }
@@ -33,18 +25,10 @@ command -v node >/dev/null 2>&1 || { echo "GUI SKIP gui: no node"; exit 0; }
   { echo "GUI FAIL gui: run tests/gimp-test.sh first (it installs the plug-in)"; exit 1; }
 mkdir -p "$out"
 
-# the GIMP of this test: the one that runs gui-script.py (a Flatpak
-# instance, or the native process). Only it is stopped at the end.
+# the GIMP of this test: the process that runs gui-script.py. Only it is
+# stopped at the end.
 ours () {
-    if [ "$gimp_mode" = --native ]; then
-        pgrep -f -x "gimp-3.2 .*$here/gui-script.py.*" ; return
-    fi
-    flatpak ps --columns=instance,child-pid,application 2>/dev/null |
-      while read -r instance pid app; do
-          [ "$app" = org.gimp.GIMP ] || continue
-          { tr '\0' ' ' < "/proc/$pid/cmdline"; } 2>/dev/null |
-            grep -qF "$here/gui-script.py" && echo "$instance"
-      done
+    pgrep -f -x "gimp-3.2 .*$here/gui-script.py.*"
 }
 [ -z "$(ours)" ] || { echo "GUI FAIL gui: the test's GIMP is already running"; exit 1; }
 chrome_pid=
@@ -59,11 +43,8 @@ stop_all () {
     chrome_pid=
     [ -n "$gimp_instance" ] || gimp_instance=$(ours)
     for instance in $gimp_instance; do
-        if [ "$gimp_mode" = --native ]; then
-            pkill -P "$instance" 2>/dev/null; kill "$instance" 2>/dev/null
-        else
-            flatpak kill "$instance" 2>/dev/null
-        fi
+        pkill -P "$instance" 2>/dev/null
+        kill "$instance" 2>/dev/null
     done
     gimp_instance=
     i=0

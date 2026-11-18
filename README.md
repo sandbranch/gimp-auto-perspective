@@ -40,9 +40,9 @@ research behind it in [docs/research.md](docs/research.md) and
 
 ## Building
 
-Through gimp-devtools (next to this folder), against the Flatpak GIMP when
-it is installed, else the native one (`GIMP_FLATPAK=0` or `1` chooses;
-the tests pass with the native GIMP 3.2.8):
+Against the native GIMP 3 and its development files (on Debian and
+Ubuntu `sudo apt install gimp libgimp-3.0-dev meson ninja-build`),
+through gimp-devtools next to this folder:
 
 ```
 ../gimp-devtools/gimp-build.sh . meson setup build

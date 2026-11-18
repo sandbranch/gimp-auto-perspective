@@ -3,7 +3,7 @@
 # AddressSanitizer and UndefinedBehaviorSanitizer, leaks included. Also
 # runs auto-perspective-cli under the sanitizers on synthetic facades
 # (tests/synth.py) and on guide lines from a file. Builds and runs inside
-# the Flatpak SDK (gimp-devtools/gimp-build.sh), isolated from your
+# the native toolchain (gimp-devtools/gimp-build.sh), isolated from your
 # folders.
 #
 #   tests/check.sh           both builds

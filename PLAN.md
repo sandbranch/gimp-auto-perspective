@@ -181,7 +181,7 @@ no perspective op.
 As in gimp-fusion and gimp-lqr-tng: everything through
 `tests/isolate.sh` (a throwaway HOME in tests/output, the user's GIMP,
 Blender, Godot, Krita and Tiled folders listed before and after and
-compared), builds via `gimp-devtools/gimp-build.sh` (in the Flatpak SDK, or natively),
+compared), builds against the native GIMP via `gimp-devtools/gimp-build.sh`,
 GUI GIMP with `--new-instance`, only processes the tests started are
 stopped. `tests/run.sh` runs it all. What exists now is marked (done).
 

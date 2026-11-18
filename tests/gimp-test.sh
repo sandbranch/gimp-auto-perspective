@@ -1,13 +1,12 @@
 #!/bin/sh
-# Tests the plug-in in GIMP without a window (the Flatpak GIMP when it is
-# installed, else the native one; GIMP_FLATPAK=0 or 1 chooses): tests/gimp-test.py
+# Tests the plug-in in the native GIMP without a window: tests/gimp-test.py
 # checks the registration (procedure, menu path, arguments) and, while
 # the plug-in is a skeleton, that every mode leaves the image exactly as
 # it was, on images of 8 and 16 bits and floating point, RGB and gray.
 #
 #   tests/gimp-test.sh            as usual
 #   tests/gimp-test.sh --asan     the plug-in built with AddressSanitizer and
-#                                 UBSan (GIMP runs with the SDK: --devel)
+#                                 UBSan
 #
 # GIMP runs with a throwaway profile in tests/output (the plug-in is
 # installed there, nothing in yours) and isolated from your folders
@@ -30,10 +29,6 @@ export GIMP_RUN_HOME
 # shellcheck source=SCRIPTDIR/isolate.sh
 . "$here/isolate.sh"
 snapshot_take "$out/snapshot-gimp-before.txt"
-gimp_mode=--native
-if [ "${GIMP_FLATPAK:-}" = 1 ] || { [ "${GIMP_FLATPAK:-}" != 0 ] && flatpak info org.gimp.GIMP >/dev/null 2>&1; }; then
-    gimp_mode=--flatpak
-fi
 gimp_build=${GIMP_BUILD:-$devtools/gimp-build.sh}
 in_sdk () { "$gimp_build" "$top" "$*"; }
 
@@ -43,7 +38,7 @@ run_args=
 if [ "$1" = --asan ]; then
     build=tests/output/build-asan
     profile=$out/profile-asan
-    run_args="--devel --env=ASAN_OPTIONS=log_path=$out/sanitizer/asan:detect_leaks=0 \
+    run_args="--env=ASAN_OPTIONS=log_path=$out/sanitizer/asan:detect_leaks=0 \
       --env=UBSAN_OPTIONS=log_path=$out/sanitizer/ubsan:print_stacktrace=1"
     [ -f "$top/$build/build.ninja" ] ||
       in_sdk meson setup "$build" -Db_sanitize=address,undefined -Db_lundef=false \
@@ -61,7 +56,7 @@ status=0
 python3 "$here/synth.py" --size=320,240 --pitch=10 --roll=2 "$g/in/facade.pfm" || exit 1
 
 # shellcheck disable=SC2086
-gimp_run --timeout=600 $gimp_mode $run_args --filesystem="$top" \
+gimp_run --timeout=600 $run_args \
   --env=GIMP3_DIRECTORY="$profile" --env=UT_IN="$g/in" -- \
   gimp-console-3.2 --new-instance --no-interface --no-data --no-fonts \
   --batch-interpreter python-fu-eval -b "exec(open('$here/gimp-test.py').read())" \
