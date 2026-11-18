@@ -252,9 +252,12 @@ stopped. `tests/run.sh` runs it all. What exists now is marked (done).
   noise images. Against LSD 1.6: `tests/lsd-ref.sh` (not part of
   `run.sh`: it fetches the AGPL reference at test time) compares with
   LSD 1.6's own output on its example image (numbers in 3.1) and,
-  built in tests/output, on the facades. The image comparison was run;
-  building and running LSD 1.6 itself was blocked by the session's
-  permissions on 2026-11-18 and has not been run yet.
+  built in tests/output, on the facades. Run 2026-11-18 (LSD 1.6 built
+  in tests/output): on the flat, pitch and full facades 99.7 to 100 %
+  of the reference's length found, every segment of 40 pixels or more,
+  99.0 to 100 % of ours matching; on the noisy facade 96.1 % of the
+  length, all long segments, 95.8 % matching; on LSD 1.6's own example
+  image 89.9 % of the length, 95.6 % of the long segments.
 - (done) Crop: rotated rectangles against the closed form of the
   largest axis aligned rectangle and of the largest one of the same
   shape: 98.6 to 99.7 % of the area (rounding inwards to whole pixels),
@@ -319,6 +322,8 @@ public domain, CC0. Measured 2026-11-18 with auto-perspective-cli:
 | Kirkgate Market, 3072x2304 | vertical, auto (picks vertical) | rotation -4.09, shift-v 0.341 | 78 % | weighted median 0.257, largest 1.21 degrees |
 | Stolbergs, 1536x1024 | vertical, auto (picks vertical) | rotation -3.74, shift-v 0.190 | 83 % | median 0.079, largest 0.75 |
 | Stolbergs | full | "insane": the receding street would need more than 4 times the area; nothing applied | | |
+| Iwase Bunko Library, 3216x4288 | vertical | rotation -1.14, shift-v 0.262 | 86 % | verticals median 0.324, largest 8.26 |
+| Iwase Bunko Library | full, auto (picks full) | rotation +1.32, shift-v 0.263, shift-h -0.199, shear -0.049 | 78 % | verticals median 0.180, largest 1.53; horizontals median 0.210, largest 4.36 |
 
 The largest values are street furniture: on Kirkgate the worst line is
 a pole on the right, and the two edges of the tapering lamp post lean
@@ -332,11 +337,11 @@ s and 164 MiB for the 7 megapixel photo; Kirkgate scaled to 6000x4000,
 when the photo is there) the whole run on Kirkgate, fit, transform and
 crop, takes 0.98 s. Before and after previews are written into
 tests/output/real (not committed: README screenshots still to do).
-The third photo, Iwase Bunko Library (the horizontal case), could not
-be fetched on 2026-11-18: upload.wikimedia.org answered 429 (too many
-requests) to four tries over several minutes; `tests/real.sh` checks it
-by the SHA-1 Commons publishes and skips it while it is missing. So the
-Horizontal and Full modes have not yet been measured on a real photo.
+The third photo, Iwase Bunko Library, was refused by upload.wikimedia.org
+(429) at first and fetched later the same day; `tests/real.sh` checks it
+by the SHA-1 Commons publishes and skips it while it is missing. Full
+(and Automatic, which picks Full there) straightens both directions on
+it, 0.55 s and 318 MiB for 13.8 megapixels; looked at before and after.
 
 ### 5.4 GIMP without a window (`tests/gimp-test.sh`, also `--asan`)
 
@@ -365,9 +370,11 @@ Horizontal and Full modes have not yet been measured on a real photo.
 ### 5.5 GUI on Broadway (`tests/gui/gui-test.sh`)
 
 - (done) Image > Transform shows Auto Perspective...; the dialog opens.
-- (updated 2026-11-18, not run yet: David runs the GUI tests) OK
-  succeeds, the fit is ok with mode vertical, the canvas is cropped and
-  the image changed; a screenshot of the result (03-result.png).
+- (done, run 2026-11-18) OK succeeds, the fit is ok with mode
+  vertical, the canvas is cropped and the image changed; a screenshot
+  of the result (03-result.png, in the README as docs/result.png). The
+  first run found the dialog 936 pixels high with OK off a 900 pixel
+  screen: the preview now sits beside the settings (617 pixels).
 - Once it works: the preview draws (a screenshot compared with the
   result), switching modes changes it, the path chooser lists the
   image's paths, Cancel changes nothing, OK applies what the preview
@@ -380,7 +387,7 @@ Horizontal and Full modes have not yet been measured on a real photo.
    Nelder-Mead, RANSAC; the recovery tests (5.2). `auto-perspective-cli fit`.
 3. (done) **Crop and warp** in the core: `auto-perspective-cli warp`; crop tests.
 4. (done) **Applying in GIMP** (section 4), non-interactive; GIMP tests (5.4).
-5. (built, GUI test not run yet) **The dialog with the preview** and the
+5. (done, GUI test passes) **The dialog with the preview** and the
    fine tuning; GUI tests. The preview is a 400 pixel copy of the
    layer, transformed by the core's warp with the same matrix (scaled),
    the lines used drawn over it (vertical green, horizontal blue,
