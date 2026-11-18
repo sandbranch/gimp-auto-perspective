@@ -160,7 +160,8 @@ def tests():
         check(proc.get_image_types() == 'RGB*, GRAY*', 'image types RGB*, GRAY* (got %s)' % proc.get_image_types())
         names = [a.name for a in proc.get_arguments()]
         check(names[3:] == ['mode', 'path', 'crop', 'apply-to', 'interpolation', 'focal-length',
-                            'lens-dependence'], 'arguments (got %s)' % names)
+                            'lens-dependence', 'adjust-rotation', 'adjust-shift-v', 'adjust-shift-h',
+                            'adjust-shear'], 'arguments (got %s)' % names)
         rnames = [a.name for a in proc.get_return_values()]
         check(rnames == ['status', 'rotation', 'shift-v', 'shift-h', 'shear', 'mode-used'],
               'return values (got %s)' % rnames)
@@ -347,6 +348,25 @@ def tests():
           'guided with a closed stroke of 4 anchors: its 4 sides, full (got %s %s)'
           % (r.index(1) if r.index(0) == Gimp.PDBStatusType.SUCCESS else r.index(0).value_nick,
              r.index(6) if r.index(0) == Gimp.PDBStatusType.SUCCESS else ''))
+    image.delete()
+
+    # ---- fine tuning: added to the fit; alone when the fit finds nothing
+    cli = read_kv(os.path.join(inp, 'cli-fit-vertical.txt'))
+    image = make_image(P.FLOAT_NON_LINEAR, gray=True)
+    r = run(image, mode='vertical', adjust_rotation=0.5, adjust_shift_v=-0.02, adjust_shear=0.01)
+    check(r.index(1) == 'ok' and abs(r.index(2) - (float(cli['rotation']) + 0.5)) < 5e-9 and
+          abs(r.index(3) - (float(cli['shift-v']) - 0.02)) < 5e-9 and abs(r.index(5) - 0.01) < 5e-9,
+          'fine tuning: the offsets are added to the fit (rotation %.6f, shift-v %.6f, shear %.6f)'
+          % (r.index(2), r.index(3), r.index(5)))
+    image.delete()
+    w, h = 160, 120
+    blank = (w, h, array.array('f', [0.5] * (w * h)).tobytes())
+    image = make_image(P.U8_NON_LINEAR, data=blank)
+    r = run(image, mode='auto', adjust_rotation=3.0, crop='none')
+    check(r.index(1) == 'not-enough-lines' and r.index(2) == 3.0 and
+          (image.get_width(), image.get_height()) != (w, h),
+          'fine tuning alone: applied although the fit found nothing (rotation %.1f, canvas %dx%d)'
+          % (r.index(2), image.get_width(), image.get_height()))
     image.delete()
 
     # ---- nothing to find: unchanged; indexed: refused

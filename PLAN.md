@@ -9,8 +9,9 @@ perspective" module (ashift, GPL-3.0-or-later, after ShiftN), as a GIMP
 **Status (2026-11-18): the core works and the plug-in applies it**
 (steps 1 to 4 of section 6: LSD, model, fit, RANSAC, crop, warp, with
 their tests and the measured recovery numbers in 5.2; the transform in
-GIMP, non-interactive, with the tests of 5.4). The dialog has no
-preview yet (step 5). The facts this plan rests on, with sources:
+GIMP, non-interactive, with the tests of 5.4). Step 5, the dialog with
+its preview and the fine tuning, is built but not yet tried in GIMP's
+window: the GUI tests are for David to run (5.5). The facts this plan rests on, with sources:
 [docs/research.md](docs/research.md) and
 [docs/patents.md](docs/patents.md). The open questions of section 7 got
 defaults while David was away; each is marked there and easy to change.
@@ -354,7 +355,18 @@ megapixel images. Screenshots for the README. Never the user's photos.
    Nelder-Mead, RANSAC; the recovery tests (5.2). `auto-perspective-cli fit`.
 3. (done) **Crop and warp** in the core: `auto-perspective-cli warp`; crop tests.
 4. (done) **Applying in GIMP** (section 4), non-interactive; GIMP tests (5.4).
-5. **The dialog with the preview** and the fine tuning; GUI tests.
+5. (built, GUI test not run yet) **The dialog with the preview** and the
+   fine tuning; GUI tests. The preview is a 400 pixel copy of the
+   layer, transformed by the core's warp with the same matrix (scaled),
+   the lines used drawn over it (vertical green, horizontal blue,
+   outliers grey) and the crop with the outside darkened; a status line
+   with the mode, the line counts and the values. "Fine tuning" holds
+   four offsets added to the fit (arguments `adjust-rotation`,
+   `adjust-shift-v`, `adjust-shift-h`, `adjust-shear`, so scripts can
+   use them too; reset to 0 each time the dialog opens), the focal
+   length and the lens dependence. With fine tuning but a failed fit,
+   the offsets alone are applied (tested in 5.4). Detection runs in the
+   dialog once, when it opens; the fits run again on every change.
 6. **Automatic mode** rule tuned on synthetic and real images (5.3).
 7. README with screenshots, then offer upstream (GIMP issue #2026 is
    the natural place to mention it).

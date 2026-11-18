@@ -39,7 +39,10 @@ snapshot_take "$out/snapshot-before.txt"
 # the screenshots, override with the variables if the theme moves them
 IMAGE_MENU=${GUI_IMAGE_MENU:-212,49}
 TRANSFORM_ITEM=${GUI_TRANSFORM_ITEM:-246,175}
-DIALOG_OK=${GUI_DIALOG_OK:-404,453}
+# OK: from the dialog's bottom right corner (GIMP puts OK last), as the
+# dialog's size depends on the preview and the fonts
+OK_FROM_RIGHT=${GUI_OK_FROM_RIGHT:-55}
+OK_FROM_BOTTOM=${GUI_OK_FROM_BOTTOM:-22}
 
 click_in_dialog () {
     pos=$(p "${1%,*}" "${1#*,}")
@@ -74,7 +77,10 @@ session () {
         [ -n "$at" ] || { fail "dialog: the dialog did not open"; stop_all; return; }
         pass "dialog: the dialog opened (at $at, ${dw}x$dh)"
         $cdp "$view" wait:800 shot:"$out/02-dialog.png" >/dev/null
-        click_in_dialog "$DIALOG_OK" 1000
+        $cdp "$view" wait:3000 shot:"$out/02-dialog-preview.png" >/dev/null
+        click_in_dialog "$((dw - OK_FROM_RIGHT)),$((dh - OK_FROM_BOTTOM))" 1000
+        # (should the click miss OK: Enter activates the default button)
+        wait_for "$out/result.txt" 20 || $cdp "$view" key:Enter >/dev/null
         if ! wait_for "$out/result.txt" 120; then
             fail "dialog: no result after OK (log: $out/gimp-$name.log)"; stop_all; return
         fi

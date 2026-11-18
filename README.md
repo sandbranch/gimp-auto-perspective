@@ -6,7 +6,8 @@ fit a rotation, lens shifts and a shear that make them so, and transform
 the image. The method is that of darktable's "rotate and perspective"
 module (ashift, after ShiftN).
 
-**Status: it corrects; the dialog has no preview yet.** Line detection
+**Status: it corrects; the dialog with its preview is new and not yet
+tried in GIMP's window.** Line detection
 (LSD), the fit (ashift's model, cost and RANSAC, our own Nelder-Mead),
 the crop and the warp run in the core and on the command line, tested
 against darktable's homography, LSD 1.6's output and facades rendered
@@ -36,9 +37,10 @@ The plan is in [PLAN.md](PLAN.md); the research behind it in
 - `src/plugin/main.c`: **Image > Transform > Auto Perspective...**
   (`plug-in-auto-perspective`) with its modes (Automatic, Vertical, Horizontal,
   Full, Rotation only, Guided by a path), crop, apply-to,
-  interpolation, focal length (0: from EXIF) and lens dependence, and a
-  dialog without preview yet. It returns the status, the four values
-  and the mode used, so it can be scripted.
+  interpolation, focal length (0: from EXIF), lens dependence and four
+  fine tuning offsets, and a dialog with a preview (the result, the
+  lines used, the crop). It returns the status, the four values and the
+  mode used, so it can be scripted.
 - Tests, all isolated from your own folders:
   - `tests/check.sh`: unit tests of the core, as usual and under
     AddressSanitizer and UBSan, `auto-perspective-cli` under the
