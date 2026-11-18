@@ -65,7 +65,15 @@ The plan is in [PLAN.md](PLAN.md); the research behind it in
   - `tests/synth.py`: synthetic facades seen by a camera turned by known
     angles, the truth for the recovery tests to come.
 
-![The dialog of the skeleton](docs/dialog-skeleton.png)
+The dialog on a synthetic facade seen from below: the lines it found
+(green vertical, blue horizontal) and the crop (yellow) in the preview,
+the settings beside it.
+
+![The Auto Perspective dialog](docs/dialog.png)
+
+After OK: the verticals straightened and the canvas cropped.
+
+![The facade corrected](docs/result.png)
 
 ## Building
 

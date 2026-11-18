@@ -735,7 +735,7 @@ static gboolean
 run_dialog (GimpProcedure *procedure, GimpProcedureConfig *config, GimpImage *image,
             GimpDrawable *drawable)
 {
-  GtkWidget  *dialog, *content;
+  GtkWidget  *dialog, *content, *settings, *hbox, *left;
   Preview     p = { 0 };
   GeglBuffer *buffer;
   gboolean    ok;
@@ -763,22 +763,9 @@ run_dialog (GimpProcedure *procedure, GimpProcedureConfig *config, GimpImage *im
       g_object_unref (buffer);
     }
 
-  /* the preview and the status line on top (fill packs below them) */
-  content = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
-  p.area = gtk_drawing_area_new ();
-  gtk_widget_set_size_request (p.area, 480, 360);
-  gtk_widget_set_margin_bottom (p.area, 6);
-  g_signal_connect (p.area, "draw", G_CALLBACK (preview_draw), &p);
-  gtk_box_pack_start (GTK_BOX (content), p.area, TRUE, TRUE, 0);
-  gtk_widget_show (p.area);
-  p.label = gtk_label_new ("Finding lines...");
-  gtk_label_set_line_wrap (GTK_LABEL (p.label), TRUE);
-  gtk_label_set_xalign (GTK_LABEL (p.label), 0.0);
-  gtk_label_set_max_width_chars (GTK_LABEL (p.label), 60);
-  gtk_widget_set_margin_bottom (p.label, 6);
-  gtk_box_pack_start (GTK_BOX (content), p.label, FALSE, FALSE, 0);
-  gtk_widget_show (p.label);
-
+  /* the preview with the status line on the left, the settings on the
+   * right: side by side the dialog stays low enough for a laptop screen
+   * (one above the other it was 936 pixels high) */
   gimp_procedure_dialog_get_label (GIMP_PROCEDURE_DIALOG (dialog), "fine-title", "Fine tuning",
                                    FALSE, FALSE);
   gimp_procedure_dialog_fill_box (GIMP_PROCEDURE_DIALOG (dialog), "fine-box",
@@ -786,8 +773,33 @@ run_dialog (GimpProcedure *procedure, GimpProcedureConfig *config, GimpImage *im
                                   "adjust-shear", "focal-length", "lens-dependence", NULL);
   gimp_procedure_dialog_fill_expander (GIMP_PROCEDURE_DIALOG (dialog), "fine-expander",
                                        "fine-title", FALSE, "fine-box");
-  gimp_procedure_dialog_fill (GIMP_PROCEDURE_DIALOG (dialog), "mode", "path", "crop",
-                              "apply-to", "interpolation", "fine-expander", NULL);
+  settings = gimp_procedure_dialog_fill_box (GIMP_PROCEDURE_DIALOG (dialog), "settings-box",
+                                             "mode", "path", "crop", "apply-to",
+                                             "interpolation", "fine-expander", NULL);
+  /* fill packs the settings into the content area (and keeps run from
+   * filling in every property); then they move next to the preview */
+  gimp_procedure_dialog_fill (GIMP_PROCEDURE_DIALOG (dialog), "settings-box", NULL);
+  content = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
+  g_object_ref (settings);
+  gtk_container_remove (GTK_CONTAINER (gtk_widget_get_parent (settings)), settings);
+
+  hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+  gtk_box_pack_start (GTK_BOX (content), hbox, TRUE, TRUE, 0);
+  left = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_box_pack_start (GTK_BOX (hbox), left, TRUE, TRUE, 0);
+  p.area = gtk_drawing_area_new ();
+  gtk_widget_set_size_request (p.area, 480, 360);
+  g_signal_connect (p.area, "draw", G_CALLBACK (preview_draw), &p);
+  gtk_box_pack_start (GTK_BOX (left), p.area, TRUE, TRUE, 0);
+  p.label = gtk_label_new ("Finding lines...");
+  gtk_label_set_line_wrap (GTK_LABEL (p.label), TRUE);
+  gtk_label_set_xalign (GTK_LABEL (p.label), 0.0);
+  gtk_label_set_max_width_chars (GTK_LABEL (p.label), 60);
+  gtk_box_pack_start (GTK_BOX (left), p.label, FALSE, FALSE, 0);
+  gtk_widget_set_valign (settings, GTK_ALIGN_START);
+  gtk_box_pack_start (GTK_BOX (hbox), settings, FALSE, FALSE, 0);
+  g_object_unref (settings);
+  gtk_widget_show_all (hbox);
 
   g_signal_connect_swapped (config, "notify", G_CALLBACK (preview_queue), &p);
   preview_queue (&p);
