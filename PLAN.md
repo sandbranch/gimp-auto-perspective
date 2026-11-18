@@ -477,6 +477,16 @@ All 13 pass (2026-11-18). Times: 0.36 to 0.57 s for 8 to 11 megapixels.
   of the result (03-result.png, in the README as docs/result.png). The
   first run found the dialog 936 pixels high with OK off a 900 pixel
   screen: the preview now sits beside the settings (617 pixels).
+- (written 2026-11-18, not yet run: for David) **Undo**: after OK, a
+  click on the canvas outside the image (`GUI_CANVAS`, 150,780 by
+  docs/result.png), Escape, then Ctrl+Z (tests/gui/key.mjs, the same as
+  gimp-layerfx's: cdp.mjs has no modifier keys) until the image changes,
+  up to 3 presses; gui-script.py then writes undo.txt: the canvas must
+  be 640x480 again, one layer, the pixels the same as before the
+  plug-in ran, and one press should have done it (more presses are
+  reported as a note: the click may have made an undo step of its
+  own); whether the image is dirty is reported too (expected: no).
+  Screenshot 04-undone.png.
 - Once it works: the preview draws (a screenshot compared with the
   result), switching modes changes it, the path chooser lists the
   image's paths, Cancel changes nothing, OK applies what the preview

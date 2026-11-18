@@ -72,7 +72,8 @@ start_gimp () {
     GUI_BROADWAY_PORT=$(free_broadway_port)
     export GUI_BROADWAY_PORT
     page=http://127.0.0.1:$GUI_BROADWAY_PORT/
-    rm -f "$out/result.txt" "$out/done" "$out/page-open" "$out/ready" "$out/check"
+    rm -f "$out/result.txt" "$out/done" "$out/page-open" "$out/ready" "$out/check" \
+      "$out/undo.txt" "$out/undone"
     "$here/start.sh" >"$out/gimp-$1.log" 2>&1 &
     CDP_PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
     export CDP_PORT

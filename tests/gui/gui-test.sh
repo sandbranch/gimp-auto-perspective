@@ -5,7 +5,9 @@
 #   menu    Image > Transform open: Auto Perspective... under Arbitrary Rotation
 #   dialog  the synthetic facade, Image > Transform > Auto Perspective..., OK:
 #           success, the fit ok (the facade's camera looks up 10 degrees,
-#           so automatic picks vertical), the image corrected and cropped
+#           so automatic picks vertical), the image corrected and cropped;
+#           then Ctrl+Z on the canvas: the image back to its size, layers
+#           and pixels from before (one undo group)
 #
 # Run tests/gimp-test.sh first (it installs the plug-in into the test
 # profile). Needs a headless Chrome, node 22 and ../gimp-devtools (or
@@ -43,6 +45,11 @@ TRANSFORM_ITEM=${GUI_TRANSFORM_ITEM:-246,175}
 # dialog's size depends on the preview and the fonts
 OK_FROM_RIGHT=${GUI_OK_FROM_RIGHT:-55}
 OK_FROM_BOTTOM=${GUI_OK_FROM_BOTTOM:-22}
+# a spot of the canvas outside the image (the grey around it, below the
+# cropped facade in docs/result.png), clicked so that Ctrl+Z goes to the
+# image window; the active tool there is Crop, and a click without a drag
+# outside the image makes no undo step (an Escape follows anyway)
+CANVAS=${GUI_CANVAS:-150,780}
 
 click_in_dialog () {
     pos=$(p "${1%,*}" "${1#*,}")
@@ -92,7 +99,37 @@ session () {
           fail "dialog: the canvas was not cropped: $(tr '\n' ' ' < "$out/result.txt")" ||
           pass "dialog: the canvas was cropped ($(grep '^size' "$out/result.txt"))"
         result_is "unchanged no" "dialog: the image was corrected"
-        $cdp "$view" wait:800 shot:"$out/03-result.png" >/dev/null;;
+        $cdp "$view" wait:800 shot:"$out/03-result.png" >/dev/null
+        # undo: Escape (for a popup that may hold the keyboard), a click
+        # on the canvas, Escape (for a crop rectangle the click may have
+        # begun), then Ctrl+Z until the image changes, up to 3 times;
+        # gui-script.py reports the change at once, so an extra undo step
+        # (from the click) would show as more than one press
+        $cdp "$view" key:Escape wait:300 move:"$CANVAS" wait:300 click:"$CANVAS" wait:500 \
+          key:Escape wait:300 >/dev/null
+        presses=0
+        while [ ! -f "$out/undo.txt" ] && [ $presses -lt 3 ]; do
+            node "$here/key.mjs" z
+            presses=$((presses + 1))
+            wait_for "$out/undo.txt" 5
+        done
+        touch "$out/undone"
+        if ! wait_for "$out/undo.txt" 30; then
+            fail "undo: no result (log: $out/gimp-$name.log)"
+        else
+            $cdp "$view" wait:800 shot:"$out/04-undone.png" >/dev/null
+            undo_is () {
+                grep -q "^$1\$" "$out/undo.txt" && pass "$2" ||
+                  fail "$2: $(tr '\n' ' ' < "$out/undo.txt")"
+            }
+            undo_is "changed yes" "undo: Ctrl+Z on the canvas changed the image ($presses press(es))"
+            undo_is "size 640x480" "undo: the canvas is back to 640x480"
+            undo_is "layers 1" "undo: one layer"
+            undo_is "pixels same" "undo: the pixels are those from before the plug-in ran"
+            [ "$presses" = 1 ] && pass "undo: one Ctrl+Z undid the whole correction" ||
+              echo "GUI NOTE undo: $presses presses before the image changed (the click may have made an undo step)"
+            echo "GUI NOTE undo: $(grep '^dirty' "$out/undo.txt") (expected no: back to the clean state)"
+        fi;;
     esac
     touch "$out/done"
     stop_all

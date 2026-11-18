@@ -7,7 +7,11 @@
 #
 # When the dialog is closed (or the test has looked at the menu), writes
 # the status, the image size, the layers and a checksum of the pixels
-# before and after to GUI_OUT/result.txt, waits for GUI_OUT/done (the
+# before and after to GUI_OUT/result.txt. After the dialog it then waits
+# until the image changes (the test presses Ctrl+Z on the canvas) or
+# GUI_OUT/undone exists, and writes whether it changed, its size, layers,
+# whether its pixels are those from before the plug-in ran, and whether
+# it is dirty, to GUI_OUT/undo.txt. Then it waits for GUI_OUT/done (the
 # test takes its screenshots meanwhile) and quits GIMP.
 #
 # Copyright 2026 David
@@ -93,6 +97,19 @@ else:
                          'layers %d' % len(image.get_layers()),
                          'size %dx%d' % (image.get_width(), image.get_height()),
                          'unchanged %s' % ('yes' if checksum(image) == before else 'no')])
+    # undo: the state after OK, then wait for the test's Ctrl+Z
+    after = (image.get_width(), image.get_height(), len(image.get_layers()), checksum(image))
+    now = after
+    t = time.time()
+    while (now == after and not os.path.exists(os.path.join(out, 'undone')) and
+           time.time() - t < 300):
+        time.sleep(0.5)
+        now = (image.get_width(), image.get_height(), len(image.get_layers()), checksum(image))
+    write('undo.txt', ['changed %s' % ('no' if now == after else 'yes'),
+                       'size %dx%d' % (now[0], now[1]),
+                       'layers %d' % now[2],
+                       'pixels %s' % ('same' if now[3] == before else 'different'),
+                       'dirty %s' % ('yes' if image.is_dirty() else 'no')])
 
 wait('done')
 quit_proc = pdb.lookup_procedure('gimp-quit')
