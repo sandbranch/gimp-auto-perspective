@@ -10,8 +10,10 @@ perspective" module (ashift, GPL-3.0-or-later, after ShiftN), as a GIMP
 (steps 1 to 4 of section 6: LSD, model, fit, RANSAC, crop, warp, with
 their tests and the measured recovery numbers in 5.2; the transform in
 GIMP, non-interactive, with the tests of 5.4). Step 5, the dialog with
-its preview and the fine tuning, is built but not yet tried in GIMP's
-window: the GUI tests are for David to run (5.5). The facts this plan rests on, with sources:
+its preview and the fine tuning, passed its first GUI run (OK applies;
+5.5); the undo step of the GUI test is written but not yet run (for
+David). Step 6, the automatic rule, is tuned on 13 real photos (3.4,
+5.3), and the guided mode is measured in GIMP (5.4). The facts this plan rests on, with sources:
 [docs/research.md](docs/research.md) and
 [docs/patents.md](docs/patents.md). The open questions of section 7 got
 defaults while David was away; each is marked there and easy to change.
@@ -514,8 +516,9 @@ All 13 pass (2026-11-18). Times: 0.36 to 0.57 s for 8 to 11 megapixels.
 6. (done) **Automatic mode** rule tuned on synthetic and real images
    (3.4, 5.3): 13 photos, one rule added (the lines must agree after
    the fit), the thresholds kept.
-7. README with screenshots, then offer upstream (GIMP issue #2026 is
-   the natural place to mention it).
+7. README with screenshots (started: the dialog, the result, and a
+   before and after on Kirkgate Market, CC0), then offer upstream (GIMP
+   issue #2026 is the natural place to mention it).
 
 ## 7. Open questions for you
 
