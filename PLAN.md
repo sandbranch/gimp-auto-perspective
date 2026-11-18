@@ -16,10 +16,6 @@ window: the GUI tests are for David to run (5.5). The facts this plan rests on, 
 [docs/patents.md](docs/patents.md). The open questions of section 7 got
 defaults while David was away; each is marked there and easy to change.
 
-**David: please review [docs/patents.md](docs/patents.md) before a
-release** (question 2: all modes were implemented with the ashift
-method, nothing from Adobe's perception criteria).
-
 ## 1. What the user sees
 
 **Image > Transform > Auto Perspective...** (`<Image>/Image/Transform`, below
@@ -429,11 +425,11 @@ Horizontal and Full modes have not yet been measured on a real photo.
    Kodak 1999) and does not do the calibration steps of the other three.
    Do you want to go ahead with all modes, start with the guided and
    manual ones, or have it looked at first?
-   *Default chosen 2026-11-18 while David was away; easy to change:* all modes, with the ashift/ShiftN method only (published,
-   older, in darktable since 2016); nothing of Adobe's "human
-   perception-based criteria" (no eye level, no camera calibration, no
-   perception energy). **David should review docs/patents.md before a
-   release.**
+   **Decided 2026-11-18 (David, after reading docs/patents.md): the
+   patent side is fine.** All modes, with the ashift/ShiftN method only
+   (published, older, in darktable since 2016); nothing of Adobe's
+   "human perception-based criteria" (no eye level, no camera
+   calibration, no perception energy).
 3. **The name.** Decided 2026-11-18: "Auto Perspective..." and the
    repository gimp-auto-perspective (it was gimp-upright; "Upright" is
    Adobe's name for its feature).
