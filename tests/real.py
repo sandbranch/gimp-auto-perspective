@@ -28,17 +28,46 @@ import sys
 import numpy as np
 from PIL import Image
 
-# file, modes to check (with the status expected), why (PLAN.md 5.3).
+# file, modes to check (with the status expected), why (PLAN.md 5.3), the
+# mode Automatic should use (or its status), and what to check afterwards:
+# 'straight' (the strongest lines, below), 'small' (a photo to leave
+# nearly alone, or one whose lines are not a building's: the crop keeps
+# at least SMALL_CROP and the rotation is below SMALL_ROTATION degrees),
+# or None.
 # Stolbergs: a street of facades receding steeply; making its horizontals
 # parallel needs more than 4 times the area, so Full reports "insane"
 # and changes nothing (measured 2026-11-18), and Automatic uses Vertical.
+# The ten after Iwase Bunko Library1 were added for the tuning of the
+# automatic rule (PLAN.md 3.4 and 5.3), each looked at before and after.
 PHOTOS = [
-    ('Kirkgate_Market_02.jpg', (('vertical', 'ok'), ('auto', 'ok')), 'strongly converging verticals'),
+    ('Kirkgate_Market_02.jpg', (('vertical', 'ok'), ('auto', 'ok')), 'strongly converging verticals',
+     'vertical', 'straight'),
     ('Stolbergs_Bankenmeile.jpg', (('vertical', 'ok'), ('full', 'insane'), ('auto', 'ok')),
-     'verticals and receding horizontals'),
+     'verticals and receding horizontals', 'vertical', 'straight'),
     ('Iwase_Bunko_Library1.JPG', (('vertical', 'ok'), ('full', 'ok'), ('auto', 'ok')),
-     'a long low building seen at an angle'),
+     'a long low building seen at an angle', 'full', 'straight'),
+    ('Gooderham_Flatiron_Toronto.jpg', (('vertical', 'ok'), ('full', 'ok'), ('auto', 'ok')),
+     'towers seen from below in a street', 'vertical', 'straight'),
+    ('Iwase_Bunko_Library2.jpg', (('vertical', 'ok'), ('full', 'ok'), ('auto', 'ok')),
+     'a facade at a steep angle: Full would keep only 35 %', 'vertical', 'straight'),
+    ('Tonoi_Post_Office.jpg', (('vertical', 'ok'), ('full', 'ok'), ('auto', 'ok')),
+     'a small facade, nearly frontal, from slightly below', 'vertical', 'straight'),
+    ('Fifty-Ninth_Bank.jpg', (('auto', 'ok'),), 'a frontal facade taken with care: leave nearly alone',
+     'vertical', 'straight small'),
+    ('Chester_Cathedral_Nave.jpg', (('auto', 'ok'),), 'a symmetric interior: leave nearly alone',
+     'vertical', 'small'),
+    ('St_Mary_the_Virgin_Nave.jpg', (('vertical', 'ok'), ('auto', 'ok')), 'an interior, tilted',
+     'vertical', 'straight'),
+    ('Arusha_street.jpg', (('auto', 'ok'),), 'a street with poles, wires, people and signs',
+     'vertical', 'small'),
+    ('Broadway_116th.jpg', (('vertical', 'ok'), ('full', 'ok'), ('auto', 'ok')),
+     'a street from a height, buildings and many road lines', 'vertical', 'straight'),
+    ('Autumn_Forest_Path.jpg', (('auto', 'ok'),), 'a forest: tree trunks, no building', 'vertical', 'small'),
+    ('Hartz_Lake.jpg', (('vertical', 'ok'), ('auto', 'not-enough-lines')),
+     'a landscape: rocks and hills, no straight lines', 'not-enough-lines', None),
 ]
+SMALL_CROP = 0.9
+SMALL_ROTATION = 1.5
 # After the correction, the weighted median deviation of the STRONGEST
 # heaviest vertical lines (and, for Full, horizontal ones) must be below
 # MAX_DEVIATION degrees; the largest is printed too. (First this was the
@@ -132,7 +161,7 @@ def preview(pfm_img, path, width=800):
 
 def main():
     cli, d = sys.argv[1], sys.argv[2]
-    for name, modes, why in PHOTOS:
+    for name, modes, why, auto_expect, what in PHOTOS:
         src = os.path.join(d, name)
         if not os.path.exists(src):
             print('SKIP %s: not fetched (tests/real.sh)' % name)
@@ -146,6 +175,11 @@ def main():
         write_pfm(pfm, rgb)
         preview(rgb, os.path.join(d, base + '-before.jpg'))
         print('== %s, %dx%d (%.1f megapixels): %s' % (name, w, h, w * h / 1e6, why))
+        before = lines(cli, pfm)
+        mv, xv, nv = strongest_deviation(before, 1)
+        mh, xh, nh = strongest_deviation(before, 2)
+        print('  before    the %d strongest verticals: median %s, largest %s degrees; the %d strongest '
+              'horizontals: median %s, largest %s' % (nv, fmt(mv), fmt(xv), nh, fmt(mh), fmt(xh)), flush=True)
         for mode, expect in modes:
             r, secs, mib = run(cli, 'fit', '--mode=' + mode, pfm)
             out = os.path.join(d, '%s-%s.pfm' % (base, mode))
@@ -165,9 +199,26 @@ def main():
                      float(r['shift-v']), float(r['shift-h']), float(r['shear']), secs, mib, cw, ch,
                      100 * share, nv, fmt(mv), fmt(xv), nh, fmt(mh), fmt(xh)), flush=True)
             check(r['status'] == expect, '%s %s: status %s (expected %s)' % (name, mode, r['status'], expect))
+            if mode == 'auto':
+                got = r['mode'] if r['status'] == 'ok' else r['status']
+                check(got == auto_expect, '%s auto: uses %s (expected %s)' % (name, got, auto_expect))
             if r['status'] != 'ok':
+                if expect != 'ok':
+                    check(cw * ch == w * h and all(float(r[k]) == 0.0 for k in
+                                                   ('rotation', 'shift-v', 'shift-h', 'shear')),
+                          '%s %s: nothing changed (crop %dx%d, all four values 0)' % (name, mode, cw, ch))
                 continue
             used = r['mode']
+            if mode == 'auto' and 'small' in (what or ''):
+                check(share >= SMALL_CROP and abs(float(r['rotation'])) < SMALL_ROTATION,
+                      '%s auto: a small change, the crop keeps %.0f %% (at least %.0f %%), rotation %+.2f '
+                      '(below %.1f degrees)' % (name, 100 * share, 100 * SMALL_CROP, float(r['rotation']),
+                                                SMALL_ROTATION))
+            # (straightness and crop are checked on what Automatic gives
+            # and on the mode it should use; the other modes only for
+            # their status, as they show what that mode does here)
+            if 'straight' not in (what or '') or mode not in ('auto', auto_expect):
+                continue
             check(mv is not None and mv < MAX_DEVIATION,
                   '%s %s: the %d strongest verticals afterwards: weighted median %s degrees (target %.1f), '
                   'largest %s' % (name, mode, nv, fmt(mv), MAX_DEVIATION, fmt(xv)))

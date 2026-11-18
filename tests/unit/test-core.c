@@ -556,6 +556,25 @@ test_fit (void)
   check (up_fit (lines, 2, 100, 100, UP_MODE_VERTICAL, NULL, &p, &r) == UP_NOT_ENOUGH_LINES,
          "fit: outliers do not count");
 
+  /* lines that do not agree after any fit (a landscape's rocks): an
+   * explicit Vertical fits them anyway, Automatic reports not enough
+   * lines and changes nothing */
+  {
+    static const double xs[] = { 40, 80, 120, 160, 200, 240, 280, 320, 360 };
+    static const double as[] = { 70, 112, 78, 104, 68, 110, 75, 115, 72 };
+    UpLine scattered[9];
+
+    for (int i = 0; i < 9; i++)
+      {
+        scattered[i] = seg (xs[i], 100 + 15 * (i % 3), 60 + 7 * i, as[i]);
+        scattered[i].type = up_classify_line (&scattered[i]);
+      }
+    check (up_fit (scattered, 9, 400, 300, UP_MODE_VERTICAL, NULL, &p, &r) == UP_OK,
+           "fit: scattered near vertical lines, an explicit vertical fit runs");
+    check (up_fit (scattered, 9, 400, 300, UP_MODE_AUTO, NULL, &p, &r) == UP_NOT_ENOUGH_LINES &&
+           up_params_neutral (&p), "fit: scattered near vertical lines, auto: not enough lines, neutral");
+  }
+
   /* recovery from exact lines: the lines the parameters straighten */
   {
     static const struct { UpParams p; UpMode mode; } cases[] = {

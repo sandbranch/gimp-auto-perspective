@@ -274,6 +274,21 @@ Commons, in the file's wikitext):
 | [Kirkgate Market 02.jpg](https://commons.wikimedia.org/wiki/File:Kirkgate_Market_02.jpg) | `{{self|cc-zero}}` (CC0) | Immanuel Giel, 2018-08-29 | strongly converging verticals, ornate facade |
 | [Stolbergs "Bankenmeile" in der Rathausstraße.jpg](https://commons.wikimedia.org/wiki/File:Stolbergs_%22Bankenmeile%22_in_der_Rathausstra%C3%9Fe.jpg) | `{{PD-self}}` (public domain) | Aufklärung, 2006-08 | verticals plus receding horizontals: the full mode |
 | [Iwase Bunko Library1.JPG](https://commons.wikimedia.org/wiki/File:Iwase_Bunko_Library1.JPG) | `{{self|Cc-zero}}` (CC0) | At by At, 2011-05-15 | a long low building seen at an angle: the horizontal mode |
+| [Gooderham (Flatiron) Building.Toronto. (49145357446).jpg](https://commons.wikimedia.org/wiki/File:Gooderham_(Flatiron)_Building.Toronto._(49145357446).jpg) | `{{cc-zero}}` (CC0; from Flickr, FlickreviewR passed with licence cc-zero, 2022-10-18) | Bernard Spragg. NZ, 2019-09-28 | towers seen from below in a street |
+| [Iwase Bunko Library2.JPG](https://commons.wikimedia.org/wiki/File:Iwase_Bunko_Library2.JPG) | `{{self|Cc-zero}}` (CC0) | At by At, 2011-05-15 | a long facade at a steep angle |
+| [Former Tonoi Post Office Building - front facade.jpg](https://commons.wikimedia.org/wiki/File:Former_Tonoi_Post_Office_Building_-_front_facade.jpg) | `{{self|cc-zero}}` (CC0) | Huugo, 2026-11-01 | a small facade, nearly frontal, slightly from below |
+| [Fifty-Ninth Bank Head Office Main Building 20200921.jpg](https://commons.wikimedia.org/wiki/File:Fifty-Ninth_Bank_Head_Office_Main_Building_20200921.jpg) | `{{self|cc-zero}}` (CC0) | Kaburamata, 2020-09-21 | frontal, taken with care: to leave nearly alone |
+| [Chester Cathedral Nave 1.jpg](https://commons.wikimedia.org/wiki/File:Chester_Cathedral_Nave_1.jpg) | `{{self|cc-zero}}` (CC0) | Michael D Beckwith, 2019-11-14 | a symmetric interior |
+| [Nave - Church of St Mary the Virgin.jpg](https://commons.wikimedia.org/wiki/File:Nave_-_Church_of_St_Mary_the_Virgin.jpg) | `{{self|cc-zero}}` (CC0) | LAS30a, 2024-12-30 | an interior, tilted |
+| [Commercial street scene in Arusha city centre, showing M-Pesa and NMB Wakala agents.jpg](https://commons.wikimedia.org/wiki/File:Commercial_street_scene_in_Arusha_city_centre,_showing_M-Pesa_and_NMB_Wakala_agents.jpg) | `{{self|cc-zero}}` (CC0) | Brayan Tesha, 2026-04-23 | a street with poles, wires, people and signs |
+| [Broadway street scene at 116th Street, Manhattan, New York City.jpg](https://commons.wikimedia.org/wiki/File:Broadway_street_scene_at_116th_Street,_Manhattan,_New_York_City.jpg) | `{{self|cc-zero}}` (CC0) | Z3lvs, 2023-07-14 | a street from a height, many road lines |
+| [Hartz Lake at Hartz Mountain.jpg](https://commons.wikimedia.org/wiki/File:Hartz_Lake_at_Hartz_Mountain.jpg) | `{{self|cc-zero}}` (CC0) | JustinH, 2021-01-21 | a landscape without straight lines |
+| [Autumn Forest Path with Tall Trees.jpg](https://commons.wikimedia.org/wiki/File:Autumn_Forest_Path_with_Tall_Trees.jpg) | `{{self|cc-zero}}` (CC0) | Vovogov90, 2025-02-08 | a forest: tree trunks, no building |
 
-All three are in Commons' "Images requiring perspective correction"
-category. None of the user's own photos is used, now or later.
+The first three are in Commons' "Images requiring perspective
+correction" category. The other ten (found with Commons' search
+restricted to `incategory:CC-zero`, the licence then read in each
+file's wikitext on 2026-11-18, and the API's LicenseShortName "CC0"
+for each) are for the tuning of the automatic mode (PLAN.md 3.4 and
+5.3). CC0 asks for no credit; the authors are named here and next to
+any photo the README shows anyway. None of the user's own photos is used, now or later.

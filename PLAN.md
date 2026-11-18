@@ -166,8 +166,43 @@ rule on costs and areas. Implemented (default chosen, question 4):
 Full wins if its cost over all lines is below half of Vertical's and
 its largest crop keeps at least half of the image (`AUTO_COST_RATIO`,
 `AUTO_MIN_AREA` in perspective.c); on the synthetic facades it picks
-Vertical for pitch, Full for yaw and for pitch with yaw (5.2). Not yet
-tuned on real photos (step 6).
+Vertical for pitch, Full for yaw and for pitch with yaw (5.2).
+
+**Tuned on 13 real photos (step 6, 2026-11-18; numbers in 5.3).** One
+rule added, the thresholds kept:
+
+- *Added: the lines must agree after the fit* (`AUTO_MAX_RESIDUAL`, 4
+  degrees). Automatic takes a fit only if the weighted median deviation
+  of the lines it used, after the fit, is below 4 degrees for each kind
+  the mode fits; otherwise it passes to the next choice, and with none
+  left reports "not enough lines" and changes nothing. Why: on a
+  landscape (Hartz Lake: rocks and hills, 28 "vertical" segments that
+  are just slopes within 30 degrees of vertical) Automatic used to fit
+  Vertical and turn the photo by 7.3 degrees with a vertical shift of
+  -1.84, keeping 37 % of it: plainly wrong when looked at. Measured
+  after the fit of the mode Automatic picks (weighted median over all
+  inlier lines of that kind): 0.17 to 0.61 degrees on the buildings,
+  1.16 and 1.44 in the two church interiors, 1.25 on the tree trunks of
+  a forest, 2.03 on the street with poles and wires; on the landscape
+  10.5 (Vertical), 7.0 (Horizontal), 13.2 and 7.1 (Full). 4 degrees
+  sits at twice the largest good value and well below the landscape.
+  Explicit modes are not affected: asking for Vertical on the landscape
+  still fits it, as asked.
+- *Kept: Full only below half of Vertical's cost* (`AUTO_COST_RATIO`
+  0.5). The ratio of Full's cost to Vertical's, over all lines, on the
+  photos where both fit: Iwase Bunko Library1 0.446 (Full is right),
+  Broadway 0.545 (Full would keep 61 % and flatten a corner building),
+  Kirkgate 0.555 (Full flattens the corner of the market: wrong),
+  Tonoi Post Office 0.567 (Full is slightly nicer: its roof line
+  becomes level, 1.55 to 0.08 degrees, crop 84 % instead of 93 %),
+  Gooderham 0.646 (Full shifts the street sideways: wrong), and 0.67 to
+  0.99 on the rest. The one case where Full looks better lies between
+  two where it looks wrong, so no threshold separates them; 0.5 stays,
+  and Tonoi gets Vertical, which also looks right.
+- *Kept: Full must keep half the image* (`AUTO_MIN_AREA` 0.5). It
+  stops Full on Iwase Bunko Library2 (a long facade at a steep angle:
+  Full keeps 35 % and stretches the near end; its cost ratio is 0.21,
+  so the cost alone would have taken it).
 
 ### 3.5 The guided mode
 
@@ -343,6 +378,45 @@ by the SHA-1 Commons publishes and skips it while it is missing. Full
 (and Automatic, which picks Full there) straightens both directions on
 it, 0.55 s and 318 MiB for 13.8 megapixels; looked at before and after.
 
+**Ten more for the automatic rule (step 6, 2026-11-18).** Wikimedia
+Commons, CC0 each, the licence read on each file page (research.md,
+section 6); Commons' 3840 pixel renditions (Fifty-Ninth Bank: the
+original, 3498 wide). Chosen to cover: towers from below, facades at an
+angle, interiors, a street with many lines that are not a building's, a
+photo to leave nearly alone, and nature without architecture. Each
+before and after looked at (previews in tests/output/real, and the
+other modes beside them), not only measured. "Strongest 20" is the
+weighted median deviation from vertical of the 20 heaviest vertical
+lines found again in the image, before and after Automatic.
+
+| Photo | What | Automatic picks | Values | Crop keeps | Strongest 20 verticals, before to after | Looked right |
+|---|---|---|---|---|---|---|
+| Kirkgate Market | converging verticals | vertical | rotation -4.09, shift-v 0.341 | 78 % | 9.41 to 0.26 | yes |
+| Stolbergs | receding street | vertical (Full insane) | -3.74, 0.190 | 83 % | 2.38 to 0.08 | yes |
+| Iwase Bunko Library1 | long building at an angle | full | +1.32, 0.263, shift-h -0.199, shear -0.049 | 78 % | 3.25 to 0.18 (horizontals 2.30 to 0.21) | yes |
+| Gooderham Building, Toronto | towers from below, a street | vertical | +0.30, 0.048 | 97 % | 0.86 to 0.23 | yes |
+| Iwase Bunko Library2 | facade at a steep angle | vertical (Full keeps 35 %) | -0.04, 0.162 | 92 % | 3.16 to 0.26 | yes |
+| Former Tonoi Post Office | small facade, slightly from below | vertical | -0.07, 0.141 | 93 % | 2.58 to 0.11 | yes (Full a little nicer, see 3.4) |
+| Fifty-Ninth Bank | frontal, taken with care: leave alone | vertical | +0.24, 0.052 | 97 % | 0.51 to 0.10 | yes, nearly unchanged |
+| Chester Cathedral nave | symmetric interior: leave alone | vertical | -0.05, -0.024 | 99 % | 0.29 to 0.76 | yes, unchanged to the eye |
+| St Mary the Virgin, nave | interior, tilted | vertical | -1.04, -0.065 | 95 % | 1.20 to 0.47 | yes |
+| Arusha street | poles, wires, people, signs | vertical | -0.34, 0.056 | 96 % | 2.12 to 1.27 | yes, a small change |
+| Broadway at 116th Street | street from a height, many road lines | vertical | +0.21, 0.031 | 98 % | 0.33 to 0.12 | yes |
+| Autumn forest path | tree trunks, no building | vertical | +1.05, -0.019 | 96 % | 1.42 to 0.81 | yes, the trunks upright |
+| Hartz Lake | landscape, no straight lines | not enough lines (was: vertical, +7.33, -1.837, 37 %) | none | 100 % | unchanged | yes after the change; before it, no |
+
+Chester's number grows although the image barely changes (rotation
+0.05 degrees, crop 99 %): the 20 heaviest lines found again in the
+resampled image are partly other arches. The strongest-20 measure is a
+plausibility check, not a truth, as said above. `tests/real.py` checks
+for each photo the status of the modes listed, what Automatic uses, the
+weighted median of the strongest 20 below 0.5 degrees where the photo
+has a building's lines ("straight"), and for the ones to leave nearly
+alone or without a building ("small": Fifty-Ninth Bank, Chester,
+Arusha, the forest) that the crop keeps at least 90 % and the rotation
+stays below 1.5 degrees; on Hartz Lake that Automatic changes nothing.
+All 13 pass (2026-11-18). Times: 0.36 to 0.57 s for 8 to 11 megapixels.
+
 ### 5.4 GIMP without a window (`tests/gimp-test.sh`, also `--asan`)
 
 - (done) registration: the procedure, the menu path, the arguments,
@@ -399,9 +473,9 @@ it, 0.55 s and 318 MiB for 13.8 megapixels; looked at before and after.
    length and the lens dependence. With fine tuning but a failed fit,
    the offsets alone are applied (tested in 5.4). Detection runs in the
    dialog once, when it opens; the fits run again on every change.
-6. **Automatic mode** rule tuned on synthetic and real images (5.3).
-   Started: on the two real photos measured it picks Vertical, which
-   is right for both; still to do with the third photo and more.
+6. (done) **Automatic mode** rule tuned on synthetic and real images
+   (3.4, 5.3): 13 photos, one rule added (the lines must agree after
+   the fit), the thresholds kept.
 7. README with screenshots, then offer upstream (GIMP issue #2026 is
    the natural place to mention it).
 
@@ -444,7 +518,8 @@ it, 0.55 s and 318 MiB for 13.8 megapixels; looked at before and after.
    clearly better and keeps enough of the image) what you want, or
    should Automatic simply be ashift's "fit both" (Full with shear)?
    *Default chosen 2026-11-18 while David was away; easy to change:* the rule of 3.4, implemented with the thresholds stated
-   there.
+   there, and tuned on 13 real photos the same night (one rule added:
+   the lines must agree after the fit; 3.4 has the numbers).
 5. **Apply to.** The whole image by default (all layers, canvas cropped),
    or the selected layer?
    *Default chosen 2026-11-18 while David was away; easy to change:* the whole image.

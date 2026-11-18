@@ -30,6 +30,15 @@
 #define AUTO_COST_RATIO 0.5
 #define AUTO_MIN_AREA   0.5
 
+/* the automatic mode takes a fit only if the lines it used agree after
+ * it: the weighted median of their deviation from vertical (or
+ * horizontal) must be below this many degrees, for each kind the mode
+ * fits. Measured on 13 real photos (PLAN.md 5.3): 0.2 to 2.0 degrees on
+ * buildings, interiors, a street and tree trunks, 7 to 13 on the rocks
+ * and hills of a landscape, where a Vertical fit kept 37 % of the image
+ * and turned it 7 degrees. */
+#define AUTO_MAX_RESIDUAL 4.0
+
 static const char *const mode_names[UP_MODE_COUNT] = {
   "auto", "vertical", "horizontal", "full", "rotation"
 };
@@ -506,6 +515,75 @@ crop_share (const UpParams *p, const UpLens *lens, int w, int h)
   return (double) r.width * r.height / ((double) w * h);
 }
 
+/* the weighted median deviation (degrees) of the lines of a kind (1
+ * vertical, 2 horizontal) that are no outliers, after a fit; 0 without
+ * such lines */
+static double
+residual (const UpLine *lines, int count, int width, int height, const UpLens *lens,
+          const UpParams *p, int kind)
+{
+  double  m[9], *dev, *wgt, total = 0.0, acc = 0.0, med = 0.0;
+  int     n = 0;
+
+  if (up_homography (p, lens, width, height, m) != UP_OK)
+    return HUGE_VAL;
+  dev = malloc (sizeof (double) * 2 * (size_t) (count > 0 ? count : 1));
+  if (! dev)
+    return HUGE_VAL;
+  wgt = dev + (count > 0 ? count : 1);
+  for (int i = 0; i < count; i++)
+    {
+      const UpLine *l = &lines[i];
+      double        x1, y1, x2, y2, dx, dy, d;
+      int           j;
+
+      if (l->outlier || (int) l->type != kind)
+        continue;
+      if (! up_matrix_apply (m, l->x1, l->y1, &x1, &y1) || ! up_matrix_apply (m, l->x2, l->y2, &x2, &y2))
+        {
+          free (dev);
+          return HUGE_VAL;
+        }
+      dx = fabs (x2 - x1);
+      dy = fabs (y2 - y1);
+      d = kind == UP_LINE_VERTICAL ? atan2 (dx, dy) : atan2 (dy, dx);
+      /* insertion by deviation (the counts are a few hundred) */
+      for (j = n; j > 0 && dev[j - 1] > d; j--)
+        {
+          dev[j] = dev[j - 1];
+          wgt[j] = wgt[j - 1];
+        }
+      dev[j] = d;
+      wgt[j] = l->weight;
+      total += l->weight;
+      n++;
+    }
+  for (int i = 0; i < n; i++)
+    {
+      acc += wgt[i];
+      med = dev[i];
+      if (acc >= 0.5 * total)
+        break;
+    }
+  free (dev);
+  return med * 180.0 / M_PI;
+}
+
+/* whether the lines a fit of the automatic mode used agree after it
+ * (AUTO_MAX_RESIDUAL) */
+static int
+lines_agree (const UpLine *lines, int count, int width, int height, const UpLens *lens,
+             const UpParams *p, UpMode mode)
+{
+  int which, kinds;
+
+  mode_setup (mode, &which, &kinds);
+  for (int kind = 1; kind <= 2; kind++)
+    if ((kinds & kind) && ! (residual (lines, count, width, height, lens, p, kind) < AUTO_MAX_RESIDUAL))
+      return 0;
+  return 1;
+}
+
 UpMode
 up_mode_for_lines (const UpLine *lines, int count)
 {
@@ -556,37 +634,94 @@ up_fit (const UpLine *lines, int count, int width, int height, UpMode mode,
 
   if (mode != UP_MODE_AUTO)
     r.status = fit_mode (lines, count, width, height, mode, lens, nv, nh, params, &r);
-  else if (nv >= UP_MIN_FIT_LINES)
+  else
     {
       /* Vertical, unless Full is clearly better on all lines and keeps
-       * enough of the image */
-      r.status = fit_mode (lines, count, width, height, UP_MODE_VERTICAL, lens, nv, nh, params, &r);
-      if (nh >= UP_MIN_FIT_LINES)
+       * enough of the image; Horizontal without enough vertical lines;
+       * Rotation only with too few of both. A fit whose lines do not
+       * agree afterwards (lines_agree) is passed over for the next one;
+       * if none is left, "not enough lines". */
+      int done = 0;
+
+      r.status = UP_NOT_ENOUGH_LINES;
+      r.mode_used = UP_MODE_VERTICAL;
+      if (nv >= UP_MIN_FIT_LINES)
         {
-          UpParams    pf;
-          UpFitResult rf = { 0 };
-          UpStatus    sf = fit_mode (lines, count, width, height, UP_MODE_FULL, lens, nv, nh, &pf, &rf);
+          UpParams    pv;
+          UpFitResult rv = { 0 };
+          UpStatus    sv = fit_mode (lines, count, width, height, UP_MODE_VERTICAL, lens, nv, nh, &pv, &rv);
+          int         v_ok = sv == UP_OK && lines_agree (lines, count, width, height, lens, &pv, UP_MODE_VERTICAL);
 
-          if (sf == UP_OK)
+          if (nh >= UP_MIN_FIT_LINES)
             {
-              const double cv = r.status == UP_OK
-                                ? up_cost (lines, count, width, height, lens, params, 3) : HUGE_VAL;
-              const double cf = up_cost (lines, count, width, height, lens, &pf, 3);
+              UpParams    pf;
+              UpFitResult rf = { 0 };
+              UpStatus    sf = fit_mode (lines, count, width, height, UP_MODE_FULL, lens, nv, nh, &pf, &rf);
 
-              if (cf >= 0.0 && cf < AUTO_COST_RATIO * cv &&
-                  crop_share (&pf, lens, width, height) >= AUTO_MIN_AREA)
+              if (sf == UP_OK && lines_agree (lines, count, width, height, lens, &pf, UP_MODE_FULL))
                 {
-                  *params = pf;
-                  r = rf;
-                  r.status = sf;
+                  const double cv = v_ok ? up_cost (lines, count, width, height, lens, &pv, 3) : HUGE_VAL;
+                  const double cf = up_cost (lines, count, width, height, lens, &pf, 3);
+
+                  if (cf >= 0.0 && cf < AUTO_COST_RATIO * cv &&
+                      crop_share (&pf, lens, width, height) >= AUTO_MIN_AREA)
+                    {
+                      *params = pf;
+                      r = rf;
+                      r.status = sf;
+                      done = 1;
+                    }
                 }
             }
+          if (! done && v_ok)
+            {
+              *params = pv;
+              r = rv;
+              r.status = sv;
+              done = 1;
+            }
+          else if (! done && sv != UP_OK)
+            {
+              /* (a Vertical fit that failed outright reports why) */
+              r = rv;
+              r.status = sv;
+            }
         }
+      if (! done && nv < UP_MIN_FIT_LINES && nh >= UP_MIN_FIT_LINES)
+        {
+          UpParams    ph;
+          UpFitResult rh = { 0 };
+          UpStatus    sh = fit_mode (lines, count, width, height, UP_MODE_HORIZONTAL, lens, nv, nh, &ph, &rh);
+
+          r = rh;
+          r.status = sh;
+          if (sh == UP_OK && lines_agree (lines, count, width, height, lens, &ph, UP_MODE_HORIZONTAL))
+            {
+              *params = ph;
+              done = 1;
+            }
+          else if (sh == UP_OK)
+            r.status = UP_NOT_ENOUGH_LINES;
+        }
+      if (! done && nv < UP_MIN_FIT_LINES && nh < UP_MIN_FIT_LINES)
+        {
+          UpParams    pr;
+          UpFitResult rr = { 0 };
+          UpStatus    sr = fit_mode (lines, count, width, height, UP_MODE_ROTATION, lens, nv, nh, &pr, &rr);
+
+          r = rr;
+          r.status = sr;
+          if (sr == UP_OK && lines_agree (lines, count, width, height, lens, &pr, UP_MODE_ROTATION))
+            {
+              *params = pr;
+              done = 1;
+            }
+          else if (sr == UP_OK)
+            r.status = UP_NOT_ENOUGH_LINES;
+        }
+      if (! done && r.status == UP_OK)
+        r.status = UP_NOT_ENOUGH_LINES;
     }
-  else if (nh >= UP_MIN_FIT_LINES)
-    r.status = fit_mode (lines, count, width, height, UP_MODE_HORIZONTAL, lens, nv, nh, params, &r);
-  else
-    r.status = fit_mode (lines, count, width, height, UP_MODE_ROTATION, lens, nv, nh, params, &r);
 
   if (r.status != UP_OK)
     memset (params, 0, sizeof *params);
