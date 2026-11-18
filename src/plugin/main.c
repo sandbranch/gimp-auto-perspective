@@ -1,12 +1,12 @@
-/* gimp-upright: automatic line based perspective correction for GIMP 3
+/* gimp-auto-perspective: automatic line based perspective correction for GIMP 3
  *
- *   Image > Transform > Upright...      plug-in-upright
+ *   Image > Transform > Auto Perspective...      plug-in-auto-perspective
  *
  * Finds the straight lines of buildings and the like in the selected
  * layer, fits rotation, lens shift and shear so that the nearly vertical
  * ones become vertical and the nearly horizontal ones horizontal, and
  * transforms the image with that. The work is done by the core in
- * src/core (see upright.h).
+ * src/core (see perspective.h).
  *
  * STATUS: skeleton. The procedure, its arguments and its dialog are
  * registered; it reads the layer (or the guide lines of a path) and calls
@@ -34,10 +34,10 @@
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
-#include "upright.h"
+#include "perspective.h"
 
-#define PROC_UPRIGHT   "plug-in-upright"
-#define PLUG_IN_BINARY "gimp-upright"
+#define PROC_AUTO_PERSPECTIVE   "plug-in-auto-perspective"
+#define PLUG_IN_BINARY "gimp-auto-perspective"
 #define MENU_PATH      "<Image>/Image/Transform"
 
 /* the modes of the dialog: the core's, and "guided" (lines from a path) */
@@ -45,74 +45,74 @@ enum { MODE_GUIDED = UP_MODE_COUNT };
 enum { CROP_NONE, CROP_LARGEST, CROP_ASPECT };
 enum { APPLY_IMAGE, APPLY_LAYER };
 
-typedef struct _Upright      Upright;
-typedef struct _UprightClass UprightClass;
+typedef struct _AutoPerspective      AutoPerspective;
+typedef struct _AutoPerspectiveClass AutoPerspectiveClass;
 
-struct _Upright
+struct _AutoPerspective
 {
   GimpPlugIn parent_instance;
 };
 
-struct _UprightClass
+struct _AutoPerspectiveClass
 {
   GimpPlugInClass parent_class;
 };
 
-#define UPRIGHT_TYPE (upright_get_type ())
-GType upright_get_type (void) G_GNUC_CONST;
+#define AUTO_PERSPECTIVE_TYPE (auto_perspective_get_type ())
+GType auto_perspective_get_type (void) G_GNUC_CONST;
 
-static GList          *upright_query_procedures (GimpPlugIn *plug_in);
-static GimpProcedure  *upright_create_procedure (GimpPlugIn *plug_in, const gchar *name);
-static GimpValueArray *upright_run (GimpProcedure *procedure, GimpRunMode run_mode,
+static GList          *auto_perspective_query_procedures (GimpPlugIn *plug_in);
+static GimpProcedure  *auto_perspective_create_procedure (GimpPlugIn *plug_in, const gchar *name);
+static GimpValueArray *auto_perspective_run (GimpProcedure *procedure, GimpRunMode run_mode,
                                     GimpImage *image, GimpDrawable **drawables,
                                     GimpProcedureConfig *config, gpointer run_data);
 
-G_DEFINE_TYPE (Upright, upright, GIMP_TYPE_PLUG_IN)
+G_DEFINE_TYPE (AutoPerspective, auto_perspective, GIMP_TYPE_PLUG_IN)
 
-GIMP_MAIN (UPRIGHT_TYPE)
+GIMP_MAIN (AUTO_PERSPECTIVE_TYPE)
 
 /* no translations yet */
 static gboolean
-upright_set_i18n (GimpPlugIn *plug_in, const gchar *procedure_name, gchar **gettext_domain,
+auto_perspective_set_i18n (GimpPlugIn *plug_in, const gchar *procedure_name, gchar **gettext_domain,
                   gchar **catalog_dir)
 {
   return FALSE;
 }
 
 static void
-upright_class_init (UprightClass *klass)
+auto_perspective_class_init (AutoPerspectiveClass *klass)
 {
   GimpPlugInClass *plug_in_class = GIMP_PLUG_IN_CLASS (klass);
 
-  plug_in_class->set_i18n = upright_set_i18n;
-  plug_in_class->query_procedures = upright_query_procedures;
-  plug_in_class->create_procedure = upright_create_procedure;
+  plug_in_class->set_i18n = auto_perspective_set_i18n;
+  plug_in_class->query_procedures = auto_perspective_query_procedures;
+  plug_in_class->create_procedure = auto_perspective_create_procedure;
 }
 
 static void
-upright_init (Upright *upright)
+auto_perspective_init (AutoPerspective *self)
 {
 }
 
 static GList *
-upright_query_procedures (GimpPlugIn *plug_in)
+auto_perspective_query_procedures (GimpPlugIn *plug_in)
 {
-  return g_list_append (NULL, g_strdup (PROC_UPRIGHT));
+  return g_list_append (NULL, g_strdup (PROC_AUTO_PERSPECTIVE));
 }
 
 static GimpProcedure *
-upright_create_procedure (GimpPlugIn *plug_in, const gchar *name)
+auto_perspective_create_procedure (GimpPlugIn *plug_in, const gchar *name)
 {
   GimpProcedure *procedure;
 
-  if (strcmp (name, PROC_UPRIGHT))
+  if (strcmp (name, PROC_AUTO_PERSPECTIVE))
     return NULL;
 
   procedure = gimp_image_procedure_new (plug_in, name, GIMP_PDB_PROC_TYPE_PLUGIN,
-                                        upright_run, NULL, NULL);
+                                        auto_perspective_run, NULL, NULL);
   gimp_procedure_set_image_types (procedure, "*");
   gimp_procedure_set_sensitivity_mask (procedure, GIMP_PROCEDURE_SENSITIVE_DRAWABLE);
-  gimp_procedure_set_menu_label (procedure, "_Upright...");
+  gimp_procedure_set_menu_label (procedure, "_Auto Perspective...");
   gimp_procedure_add_menu_path (procedure, MENU_PATH);
   gimp_procedure_set_attribution (procedure, "David", "David, GPL-3.0-or-later", "2026");
   gimp_procedure_set_documentation (procedure,
@@ -240,7 +240,7 @@ run_dialog (GimpProcedure *procedure, GimpProcedureConfig *config)
   gboolean   ok;
 
   gimp_ui_init (PLUG_IN_BINARY);
-  dialog = gimp_procedure_dialog_new (procedure, config, "Upright");
+  dialog = gimp_procedure_dialog_new (procedure, config, "Auto Perspective");
   gimp_procedure_dialog_get_label (GIMP_PROCEDURE_DIALOG (dialog), "note",
     "Skeleton: the fit is not implemented yet, the image stays as it is.", FALSE, FALSE);
   /* SKELETON: the preview (PLAN.md) comes above the settings */
@@ -252,7 +252,7 @@ run_dialog (GimpProcedure *procedure, GimpProcedureConfig *config)
 }
 
 static GimpValueArray *
-upright_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage *image,
+auto_perspective_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage *image,
              GimpDrawable **drawables, GimpProcedureConfig *config, gpointer run_data)
 {
   GimpValueArray *ret;
@@ -268,7 +268,7 @@ upright_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage *image,
 
   if (gimp_core_object_array_get_length ((GObject **) drawables) != 1)
     {
-      g_set_error (&error, GIMP_PLUG_IN_ERROR, 0, "Upright works on one layer: select one.");
+      g_set_error (&error, GIMP_PLUG_IN_ERROR, 0, "Auto Perspective works on one layer: select one.");
       return gimp_procedure_new_return_values (procedure, GIMP_PDB_CALLING_ERROR, error);
     }
   drawable = drawables[0];
@@ -280,7 +280,7 @@ upright_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage *image,
   guided = mode == MODE_GUIDED;
   g_object_get (config, "path", &path, NULL);
 
-  gimp_progress_init ("Upright: finding lines");
+  gimp_progress_init ("Auto Perspective: finding lines");
   if (guided)
     {
       if (! path)
@@ -304,14 +304,14 @@ upright_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage *image,
         {
           g_free (gray);
           g_clear_object (&path);
-          g_set_error (&error, GIMP_PLUG_IN_ERROR, 0, "Upright: out of memory.");
+          g_set_error (&error, GIMP_PLUG_IN_ERROR, 0, "Auto Perspective: out of memory.");
           return gimp_procedure_new_return_values (procedure, GIMP_PDB_EXECUTION_ERROR, error);
         }
       g_free (gray);
     }
   g_clear_object (&path);
 
-  gimp_progress_set_text ("Upright: fitting");
+  gimp_progress_set_text ("Auto Perspective: fitting");
   status = up_fit (lines, count, w, h, (UpMode) mode, &params, &fit);
   if (guided)
     g_free (lines);
@@ -325,7 +325,7 @@ upright_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage *image,
    * one undo group, then the canvas; gimp_context_pop. The skeleton's fit
    * is always neutral, so nothing is changed. */
   if (status == UP_OK && ! up_params_neutral (&params))
-    g_warning ("upright: a non-neutral fit, but applying it is not implemented yet");
+    g_warning ("auto-perspective: a non-neutral fit, but applying it is not implemented yet");
   gimp_progress_end ();
 
   ret = gimp_procedure_new_return_values (procedure, GIMP_PDB_SUCCESS, NULL);

@@ -1,4 +1,4 @@
-project('gimp-upright', 'c',
+project('gimp-auto-perspective', 'c',
   version: '0.0.1',
   license: 'GPL-3.0-or-later',
   meson_version: '>= 0.60.0',
@@ -9,8 +9,8 @@ cc = meson.get_compiler('c')
 math_dep = cc.find_library('m', required: false)
 
 # the core: line detection and fitting; no GIMP, no GEGL
-core_lib = static_library('upright-core',
-  'src/core/upright.c',
+core_lib = static_library('perspective-core',
+  'src/core/perspective.c',
   dependencies: math_dep,
 )
 core_dep = declare_dependency(link_with: core_lib,
@@ -18,7 +18,7 @@ core_dep = declare_dependency(link_with: core_lib,
   dependencies: math_dep)
 
 # the core on the command line (PFM files), for the tests
-upright_cli = executable('upright-cli', 'tools/upright-cli.c',
+auto_perspective_cli = executable('auto-perspective-cli', 'tools/auto-perspective-cli.c',
   dependencies: core_dep,
   install: false,
 )
@@ -39,11 +39,11 @@ if gimp_dep.found() and gimpui_dep.found()
     plugindir = gimp_dep.get_variable(pkgconfig: 'gimplibdir') / 'plug-ins'
   endif
   # GIMP 3 loads a plug-in from a folder of its own name
-  executable('gimp-upright',
+  executable('gimp-auto-perspective',
     'src/plugin/main.c',
     dependencies: [core_dep, gimp_dep, gimpui_dep],
     c_args: ['-Wno-unused-parameter'],
     install: true,
-    install_dir: plugindir / 'gimp-upright',
+    install_dir: plugindir / 'gimp-auto-perspective',
   )
 endif

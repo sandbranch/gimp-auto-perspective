@@ -2,8 +2,8 @@
 # Tests the plug-in in GIMP's real window, on a Broadway display with a
 # headless Chrome, and leaves screenshots in tests/output/gui/:
 #
-#   menu    Image > Transform open: Upright... under Arbitrary Rotation
-#   dialog  the synthetic facade, Image > Transform > Upright..., OK:
+#   menu    Image > Transform open: Auto Perspective... under Arbitrary Rotation
+#   dialog  the synthetic facade, Image > Transform > Auto Perspective..., OK:
 #           success, and (while this is a skeleton) the image unchanged
 #
 # Run tests/gimp-test.sh first (it installs the plug-in into the test

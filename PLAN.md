@@ -1,4 +1,4 @@
-# gimp-upright: the plan
+# gimp-auto-perspective: the plan
 
 Automatic line based perspective correction for GIMP 3: find the lines
 that should be vertical and horizontal, fit a transform that makes them
@@ -14,7 +14,7 @@ on, with sources: [docs/research.md](docs/research.md) and
 
 ## 1. What the user sees
 
-**Image > Transform > Upright...** (`<Image>/Image/Transform`, below
+**Image > Transform > Auto Perspective...** (`<Image>/Image/Transform`, below
 Arbitrary Rotation; verified in GIMP 3.2.6, docs/transform-menu.png).
 One dialog:
 
@@ -55,8 +55,8 @@ batched (BIMP). It already does, in the skeleton.
 
 ```
 src/core/      the core: no GIMP, no GEGL; C11, malloc only
-  upright.h      the interface (exists)
-  upright.c      modes, classification, fit driver (exists as a stub)
+  perspective.h      the interface (exists)
+  perspective.c      modes, classification, fit driver (exists as a stub)
   lsd.c          line segments (to write; section 3.1)
   ransac.c       outlier removal on vanishing points
   model.c        the homography of the four parameters
@@ -66,19 +66,19 @@ src/core/      the core: no GIMP, no GEGL; C11, malloc only
 src/plugin/    the GIMP 3 plug-in (main.c exists)
   main.c         procedure, arguments, run, apply
   dialog.c       the dialog and its preview
-tools/upright-cli.c   the core on the command line (exists)
+tools/auto-perspective-cli.c   the core on the command line (exists)
 tests/         check.sh, gimp-test.sh, gui/, synth.py, run.sh (exist)
 ```
 
-The core runs the same way from `upright-cli` as from the plug-in, so
+The core runs the same way from `auto-perspective-cli` as from the plug-in, so
 every numeric test runs without GIMP and under ASan. The CLI grows as
 the core does:
 
 ```
-upright-cli lines  image.pfm                      segments, with their class
-upright-cli fit    [--mode=M] [--lines=F] [--focal=MM] image.pfm
-upright-cli warp   [--mode=M] [--crop=C] image.pfm -o out.pfm
-upright-cli cost   --params=r,sv,sh,sh image.pfm  the cost of given values
+auto-perspective-cli lines  image.pfm                      segments, with their class
+auto-perspective-cli fit    [--mode=M] [--lines=F] [--focal=MM] image.pfm
+auto-perspective-cli warp   [--mode=M] [--crop=C] image.pfm -o out.pfm
+auto-perspective-cli cost   --params=r,sv,sh,sh image.pfm  the cost of given values
 ```
 
 ## 3. The method
@@ -181,7 +181,7 @@ no perspective op.
 As in gimp-fusion and gimp-lqr-tng: everything through
 `tests/isolate.sh` (a throwaway HOME in tests/output, the user's GIMP,
 Blender, Godot, Krita and Tiled folders listed before and after and
-compared), builds in the Flatpak SDK via `gimp-devtools/gimp-build.sh`,
+compared), builds via `gimp-devtools/gimp-build.sh` (in the Flatpak SDK, or natively),
 GUI GIMP with `--new-instance`, only processes the tests started are
 stopped. `tests/run.sh` runs it all. What exists now is marked (done).
 
@@ -246,16 +246,16 @@ megapixel images. Screenshots for the README. Never the user's photos.
   layer offsets; guided without a path is a calling error, with a path
   of 3 strokes it succeeds.
 - Once it works: the synthetic facade corrected in GIMP, then its lines
-  measured again by `upright-cli lines` (straightness as in 5.2); the
-  result against `upright-cli warp` pixel by pixel within the
+  measured again by `auto-perspective-cli lines` (straightness as in 5.2); the
+  result against `auto-perspective-cli warp` pixel by pixel within the
   difference between GIMP's and our interpolation; the parameters
-  returned equal those of `upright-cli fit` exactly; undo restores the
+  returned equal those of `auto-perspective-cli fit` exactly; undo restores the
   image; channels, paths and the selection follow; images with several
   layers; indexed images refused or converted.
 
 ### 5.5 GUI on Broadway (`tests/gui/gui-test.sh`)
 
-- (done) Image > Transform shows Upright...; the dialog opens; OK
+- (done) Image > Transform shows Auto Perspective...; the dialog opens; OK
   succeeds and (skeleton) leaves the image unchanged.
 - Once it works: the preview draws (a screenshot compared with the
   result), switching modes changes it, the path chooser lists the
@@ -264,10 +264,10 @@ megapixel images. Screenshots for the README. Never the user's photos.
 
 ## 6. Steps
 
-1. **LSD** in the core, with its tests (5.1). `upright-cli lines`.
+1. **LSD** in the core, with its tests (5.1). `auto-perspective-cli lines`.
 2. **Model and fit**: homography with the ashift oracle, cost,
-   Nelder-Mead, RANSAC; the recovery tests (5.2). `upright-cli fit`.
-3. **Crop and warp** in the core: `upright-cli warp`; crop tests.
+   Nelder-Mead, RANSAC; the recovery tests (5.2). `auto-perspective-cli fit`.
+3. **Crop and warp** in the core: `auto-perspective-cli warp`; crop tests.
 4. **Applying in GIMP** (section 4), non-interactive; GIMP tests (5.4).
 5. **The dialog with the preview** and the fine tuning; GUI tests.
 6. **Automatic mode** rule tuned on synthetic and real images (5.3).
@@ -288,9 +288,9 @@ megapixel images. Screenshots for the README. Never the user's photos.
    Kodak 1999) and does not do the calibration steps of the other three.
    Do you want to go ahead with all modes, start with the guided and
    manual ones, or have it looked at first?
-3. **The name.** "Upright" is Adobe's name for its feature. I have not
-   checked whether it is a registered trademark. Keep "Upright...", or
-   use something like "Straighten Perspective..." / "Auto Perspective..."?
+3. **The name.** Decided 2026-11-18: "Auto Perspective..." and the
+   repository gimp-auto-perspective (it was gimp-upright; "Upright" is
+   Adobe's name for its feature).
 4. **Automatic mode.** Is the rule in 3.4 (Vertical unless Full is
    clearly better and keeps enough of the image) what you want, or
    should Automatic simply be ashift's "fit both" (Full with shear)?

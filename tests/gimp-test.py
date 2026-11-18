@@ -1,5 +1,5 @@
 # Runs inside GIMP 3 without a window (tests/gimp-test.sh starts it):
-# checks that Image > Transform > Upright... is registered as planned and,
+# checks that Image > Transform > Auto Perspective... is registered as planned and,
 # while it is a skeleton, that it leaves every image exactly as it was:
 # every mode, crop and apply-to setting, on 8 and 16 bit and floating
 # point, RGB and gray, with and without alpha, a layer with offsets, and
@@ -18,7 +18,7 @@ inp = os.environ['UT_IN']
 pdb = Gimp.get_pdb()
 failures = 0
 P = Gimp.Precision
-PROC = 'plug-in-upright'
+PROC = 'plug-in-auto-perspective'
 
 
 def check(ok, what):
@@ -100,7 +100,7 @@ def tests():
     if proc is not None:
         check(proc.get_menu_paths() == ['<Image>/Image/Transform'],
               'menu path <Image>/Image/Transform (got %s)' % proc.get_menu_paths())
-        check(proc.get_menu_label() == '_Upright...', 'menu label _Upright... (got %s)' % proc.get_menu_label())
+        check(proc.get_menu_label() == '_Auto Perspective...', 'menu label _Auto Perspective... (got %s)' % proc.get_menu_label())
         names = [a.name for a in proc.get_arguments()]
         check(names[3:] == ['mode', 'path', 'crop', 'apply-to', 'interpolation'],
               'arguments (got %s)' % names)

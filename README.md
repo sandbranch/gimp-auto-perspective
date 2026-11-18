@@ -1,6 +1,6 @@
-# gimp-upright
+# gimp-auto-perspective
 
-Automatic line based perspective correction ("upright") for GIMP 3:
+Automatic line based perspective correction for GIMP 3:
 find the lines of a building that should be vertical and horizontal,
 fit a rotation, lens shifts and a shear that make them so, and transform
 the image. The method is that of darktable's "rotate and perspective"
@@ -11,23 +11,23 @@ module (ashift, after ShiftN).
 research behind it in [docs/research.md](docs/research.md) and
 [docs/patents.md](docs/patents.md).
 
-![Image > Transform > Upright...](docs/transform-menu.png)
+![Image > Transform > Auto Perspective...](docs/transform-menu.png)
 
 ## What is there
 
-- `src/core/`: the interface of the core (`upright.h`): line segments,
+- `src/core/`: the interface of the core (`perspective.h`): line segments,
   the four parameters, the modes, the fit. Line classification works;
   detection finds nothing and the fit returns the identity.
-- `tools/upright-cli.c`: the core on the command line (PFM images, or
+- `tools/auto-perspective-cli.c`: the core on the command line (PFM images, or
   guide lines from a text file), for the tests.
-- `src/plugin/main.c`: **Image > Transform > Upright...**
-  (`plug-in-upright`) with its modes (Automatic, Vertical, Horizontal,
+- `src/plugin/main.c`: **Image > Transform > Auto Perspective...**
+  (`plug-in-auto-perspective`) with its modes (Automatic, Vertical, Horizontal,
   Full, Rotation only, Guided by a path), crop, apply-to and
   interpolation, and a dialog without preview yet. It reads the layer or
   the path and calls the core, so for now the image stays as it is.
 - Tests, all isolated from your own folders:
   - `tests/check.sh`: unit tests of the core, as usual and under
-    AddressSanitizer and UBSan, and `upright-cli` under the sanitizers.
+    AddressSanitizer and UBSan, and `auto-perspective-cli` under the sanitizers.
   - `tests/gimp-test.sh` (also `--asan`): the plug-in in GIMP without a
     window: registration, and every mode leaves the image unchanged.
   - `tests/gui/gui-test.sh`: the menu and the dialog in GIMP's window on
@@ -40,7 +40,9 @@ research behind it in [docs/research.md](docs/research.md) and
 
 ## Building
 
-With the Flatpak GIMP, through gimp-devtools (next to this folder):
+Through gimp-devtools (next to this folder), against the Flatpak GIMP when
+it is installed, else the native one (`GIMP_FLATPAK=0` or `1` chooses;
+the tests pass with the native GIMP 3.2.8):
 
 ```
 ../gimp-devtools/gimp-build.sh . meson setup build

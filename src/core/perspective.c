@@ -1,9 +1,9 @@
-/* gimp-upright core (skeleton): see upright.h
+/* gimp-auto-perspective core (skeleton): see perspective.h
  *
  * Copyright 2026 David
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-#include "upright.h"
+#include "perspective.h"
 
 #include <math.h>
 #include <stdlib.h>

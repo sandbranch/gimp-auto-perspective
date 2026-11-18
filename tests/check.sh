@@ -1,7 +1,7 @@
 #!/bin/sh
 # The unit tests of the core (tests/unit), built twice: as usual and with
 # AddressSanitizer and UndefinedBehaviorSanitizer, leaks included. Also
-# runs upright-cli under the sanitizers on synthetic facades
+# runs auto-perspective-cli under the sanitizers on synthetic facades
 # (tests/synth.py) and on guide lines from a file. Builds and runs inside
 # the Flatpak SDK (gimp-devtools/gimp-build.sh), isolated from your
 # folders.
@@ -55,19 +55,19 @@ python3 "$here/synth.py" --size=160,120 "$out/cli-flat.pfm" &&
   python3 "$here/synth.py" --size=161,97 --pitch=8 --roll=2 "$out/cli-tilt.pfm" ||
   { echo "FAIL tests/synth.py"; exit 1; }
 printf '10 5 12 90\n50 4 49 91\n5 50 150 52\n' > "$out/cli-lines.txt"
-cli=tests/output/build-asan/upright-cli
+cli=tests/output/build-asan/auto-perspective-cli
 o=tests/output
 in_sdk "$san $cli version && \
   $san $cli fit $o/cli-flat.pfm && \
   $san $cli fit --mode=full $o/cli-tilt.pfm && \
   $san $cli lines $o/cli-tilt.pfm && \
   $san $cli fit --mode=vertical --lines=$o/cli-lines.txt $o/cli-tilt.pfm" \
-  >"$out/cli-asan.log" 2>&1 || { status=1; echo "FAIL upright-cli under the sanitizers:"; tail "$out/cli-asan.log"; }
-# the guided lines: two vertical and one horizontal, as upright.h classifies them
+  >"$out/cli-asan.log" 2>&1 || { status=1; echo "FAIL auto-perspective-cli under the sanitizers:"; tail "$out/cli-asan.log"; }
+# the guided lines: two vertical and one horizontal, as perspective.h classifies them
 if grep -q '^vertical 2$' "$out/cli-asan.log" && grep -q '^horizontal 1$' "$out/cli-asan.log"; then
-    echo "PASS upright-cli reads and classifies guide lines"
+    echo "PASS auto-perspective-cli reads and classifies guide lines"
 else
-    echo "FAIL upright-cli guide lines: $(tr '\n' ' ' < "$out/cli-asan.log")"
+    echo "FAIL auto-perspective-cli guide lines: $(tr '\n' ' ' < "$out/cli-asan.log")"
     status=1
 fi
 if grep -qE 'ERROR: (AddressSanitizer|LeakSanitizer)|runtime error:' "$out"/unit-asan.log* "$out/cli-asan.log"; then
@@ -75,7 +75,7 @@ if grep -qE 'ERROR: (AddressSanitizer|LeakSanitizer)|runtime error:' "$out"/unit
     grep -h -E -A5 'ERROR: (AddressSanitizer|LeakSanitizer)|runtime error:' "$out"/unit-asan.log* "$out/cli-asan.log" | head -30
     status=1
 else
-    echo "PASS no memory errors, leaks or undefined behaviour (unit tests and upright-cli)"
+    echo "PASS no memory errors, leaks or undefined behaviour (unit tests and auto-perspective-cli)"
 fi
 [ $status = 0 ] && echo "all checks passed" || echo "SOME CHECKS FAILED"
 exit $status

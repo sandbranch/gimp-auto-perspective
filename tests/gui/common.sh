@@ -16,18 +16,29 @@ out=$tests/output/gui
 devtools=${GIMP_PLUGIN_DEVTOOLS:-$src/../gimp-devtools}
 cdp="node $devtools/gui/cdp.mjs"
 view=size:${GUI_VIEW:-1400,900}
+# the Flatpak GIMP when it is installed, else the native one
+# (GIMP_FLATPAK=0 or 1 chooses); start.sh gets it from here
+gimp_mode=--native
+if [ "${GIMP_FLATPAK:-}" = 1 ] ||
+   { [ "${GIMP_FLATPAK:-}" != 0 ] && flatpak info org.gimp.GIMP >/dev/null 2>&1; }; then
+    gimp_mode=--flatpak
+fi
+export gimp_mode
 
 chrome=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
 [ -n "$chrome" ] || { echo "GUI SKIP gui: no Chrome or Chromium"; exit 0; }
 command -v node >/dev/null 2>&1 || { echo "GUI SKIP gui: no node"; exit 0; }
 [ -f "$devtools/gui/cdp.mjs" ] || { echo "GUI SKIP gui: no $devtools/gui/cdp.mjs"; exit 0; }
-[ -x "$tests/output/profile/plug-ins/gimp-upright/gimp-upright" ] ||
+[ -x "$tests/output/profile/plug-ins/gimp-auto-perspective/gimp-auto-perspective" ] ||
   { echo "GUI FAIL gui: run tests/gimp-test.sh first (it installs the plug-in)"; exit 1; }
 mkdir -p "$out"
 
-# the Flatpak instance of our GIMP: the one whose sandbox runs
-# gui-script.py. Only it is stopped at the end.
+# the GIMP of this test: the one that runs gui-script.py (a Flatpak
+# instance, or the native process). Only it is stopped at the end.
 ours () {
+    if [ "$gimp_mode" = --native ]; then
+        pgrep -f -x "gimp-3.2 .*$here/gui-script.py.*" ; return
+    fi
     flatpak ps --columns=instance,child-pid,application 2>/dev/null |
       while read -r instance pid app; do
           [ "$app" = org.gimp.GIMP ] || continue
@@ -48,7 +59,11 @@ stop_all () {
     chrome_pid=
     [ -n "$gimp_instance" ] || gimp_instance=$(ours)
     for instance in $gimp_instance; do
-        flatpak kill "$instance" 2>/dev/null
+        if [ "$gimp_mode" = --native ]; then
+            pkill -P "$instance" 2>/dev/null; kill "$instance" 2>/dev/null
+        else
+            flatpak kill "$instance" 2>/dev/null
+        fi
     done
     gimp_instance=
     i=0

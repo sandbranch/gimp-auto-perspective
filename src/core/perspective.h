@@ -1,7 +1,7 @@
-/* gimp-upright core: line based perspective correction ("upright")
+/* gimp-auto-perspective core: line based perspective correction
  *
  * No GIMP and no GEGL in here, so that the core runs on the command line
- * (tools/upright-cli.c) and in the unit tests as it runs in the plug-in.
+ * (tools/auto-perspective-cli.c) and in the unit tests as it runs in the plug-in.
  *
  * The method (see PLAN.md and docs/research.md) follows darktable's
  * ashift module (src/iop/ashift.c, GPL-3.0-or-later, after ShiftN by
@@ -20,8 +20,8 @@
  * Copyright 2026 David
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-#ifndef UPRIGHT_H
-#define UPRIGHT_H
+#ifndef PERSPECTIVE_H
+#define PERSPECTIVE_H
 
 #include <stddef.h>
 

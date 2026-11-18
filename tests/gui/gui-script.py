@@ -2,7 +2,7 @@
 # synthetic facade of tests/synth.py (GUI_IN/facade.pfm) and:
 #
 #   GUI_MODE=menu    runs nothing: the test opens Image > Transform
-#   GUI_MODE=dialog  runs Image > Transform > Upright... with its dialog,
+#   GUI_MODE=dialog  runs Image > Transform > Auto Perspective... with its dialog,
 #                    as from the menu
 #
 # When the dialog is closed (or the test has looked at the menu), writes
@@ -78,7 +78,7 @@ if mode == 'menu':
     wait('check')
     write('result.txt', ['layers %d' % len(image.get_layers())])
 else:
-    proc = pdb.lookup_procedure('plug-in-upright')
+    proc = pdb.lookup_procedure('plug-in-auto-perspective')
     time.sleep(2)
     config = proc.create_config()
     config.set_property('run-mode', Gimp.RunMode.INTERACTIVE)

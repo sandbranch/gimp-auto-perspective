@@ -1,5 +1,6 @@
 #!/bin/sh
-# Tests the plug-in in the Flatpak GIMP without a window: tests/gimp-test.py
+# Tests the plug-in in GIMP without a window (the Flatpak GIMP when it is
+# installed, else the native one; GIMP_FLATPAK=0 or 1 chooses): tests/gimp-test.py
 # checks the registration (procedure, menu path, arguments) and, while
 # the plug-in is a skeleton, that every mode leaves the image exactly as
 # it was, on images of 8 and 16 bits and floating point, RGB and gray.
@@ -29,6 +30,10 @@ export GIMP_RUN_HOME
 # shellcheck source=SCRIPTDIR/isolate.sh
 . "$here/isolate.sh"
 snapshot_take "$out/snapshot-gimp-before.txt"
+gimp_mode=--native
+if [ "${GIMP_FLATPAK:-}" = 1 ] || { [ "${GIMP_FLATPAK:-}" != 0 ] && flatpak info org.gimp.GIMP >/dev/null 2>&1; }; then
+    gimp_mode=--flatpak
+fi
 gimp_build=${GIMP_BUILD:-$devtools/gimp-build.sh}
 in_sdk () { "$gimp_build" "$top" "$*"; }
 
@@ -56,7 +61,7 @@ status=0
 python3 "$here/synth.py" --size=320,240 --pitch=10 --roll=2 "$g/in/facade.pfm" || exit 1
 
 # shellcheck disable=SC2086
-gimp_run --timeout=600 --flatpak $run_args --filesystem="$top" \
+gimp_run --timeout=600 $gimp_mode $run_args --filesystem="$top" \
   --env=GIMP3_DIRECTORY="$profile" --env=UT_IN="$g/in" -- \
   gimp-console-3.2 --new-instance --no-interface --no-data --no-fonts \
   --batch-interpreter python-fu-eval -b "exec(open('$here/gimp-test.py').read())" \
@@ -64,7 +69,7 @@ gimp_run --timeout=600 --flatpak $run_args --filesystem="$top" \
 grep -E '^UT FAIL|Traceback|^  File|Error' "$g/gimp.log"
 echo "UT $(grep -c '^UT PASS' "$g/gimp.log") checks passed"
 grep -q '^UT failures: 0$' "$g/gimp.log" || status=1
-if grep -E 'gimp-upright.*(WARNING|CRITICAL)|inconsistent state' "$g/gimp.log"; then
+if grep -E 'gimp-auto-perspective.*(WARNING|CRITICAL)|inconsistent state' "$g/gimp.log"; then
     echo "UT FAIL warnings from the plug-in, see $g/gimp.log"
     status=1
 fi

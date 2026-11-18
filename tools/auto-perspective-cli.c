@@ -1,15 +1,15 @@
-/* upright-cli: the core of gimp-upright on the command line, for the
+/* auto-perspective-cli: the core of gimp-auto-perspective on the command line, for the
  * tests (like fusion-cli in gimp-fusion)
  *
- *   upright-cli fit [--mode=auto|vertical|horizontal|full|rotation]
+ *   auto-perspective-cli fit [--mode=auto|vertical|horizontal|full|rotation]
  *                   [--lines=FILE] image.pfm
  *       detects the lines in the image (or reads them from FILE: one
  *       segment "x1 y1 x2 y2" per line, the guided mode), fits, and prints
  *       one "key value" per line: status, mode, lines, vertical,
  *       horizontal, rotation, shift-v, shift-h, shear, matrix
- *   upright-cli lines image.pfm
+ *   auto-perspective-cli lines image.pfm
  *       prints the detected segments, "x1 y1 x2 y2 width weight type"
- *   upright-cli version
+ *   auto-perspective-cli version
  *
  * Images are PFM (PF: RGB, Pf: gray, float, bottom row first), as the
  * tests of gimp-fusion use them; RGB is made gray by the mean.
@@ -19,7 +19,7 @@
  * Copyright 2026 David
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-#include "upright.h"
+#include "perspective.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,9 +99,9 @@ read_lines (const char *path, UpLine **lines, int *count)
 static int
 usage (void)
 {
-  fprintf (stderr, "usage: upright-cli fit [--mode=MODE] [--lines=FILE] image.pfm\n"
-                   "       upright-cli lines image.pfm\n"
-                   "       upright-cli version\n");
+  fprintf (stderr, "usage: auto-perspective-cli fit [--mode=MODE] [--lines=FILE] image.pfm\n"
+                   "       auto-perspective-cli lines image.pfm\n"
+                   "       auto-perspective-cli version\n");
   return 2;
 }
 
@@ -118,7 +118,7 @@ main (int argc, char **argv)
     return usage ();
   if (! strcmp (argv[1], "version"))
     {
-      printf ("upright-cli %s\n", UP_VERSION);
+      printf ("auto-perspective-cli %s\n", UP_VERSION);
       return 0;
     }
   if (strcmp (argv[1], "fit") && strcmp (argv[1], "lines"))
@@ -129,7 +129,7 @@ main (int argc, char **argv)
         {
           if (! up_mode_from_name (argv[i] + 7, &mode))
             {
-              fprintf (stderr, "upright-cli: unknown mode %s\n", argv[i] + 7);
+              fprintf (stderr, "auto-perspective-cli: unknown mode %s\n", argv[i] + 7);
               return 2;
             }
         }
@@ -145,14 +145,14 @@ main (int argc, char **argv)
   gray = read_pfm_gray (image, &w, &h);
   if (! gray)
     {
-      fprintf (stderr, "upright-cli: cannot read %s (a little endian PFM)\n", image);
+      fprintf (stderr, "auto-perspective-cli: cannot read %s (a little endian PFM)\n", image);
       return 1;
     }
 
   if (lines_file ? ! read_lines (lines_file, &lines, &count)
                  : up_detect_lines (gray, w, h, &lines, &count) != UP_OK)
     {
-      fprintf (stderr, "upright-cli: no lines from %s\n", lines_file ? lines_file : image);
+      fprintf (stderr, "auto-perspective-cli: no lines from %s\n", lines_file ? lines_file : image);
       free (gray);
       return 1;
     }
