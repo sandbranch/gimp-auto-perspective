@@ -11,8 +11,7 @@ perspective" module (ashift, GPL-3.0-or-later, after ShiftN), as a GIMP
 their tests and the measured recovery numbers in 5.2; the transform in
 GIMP, non-interactive, with the tests of 5.4). Step 5, the dialog with
 its preview and the fine tuning, passed its first GUI run (OK applies;
-5.5); the undo step of the GUI test is written but not yet run (for
-David). Step 6, the automatic rule, is tuned on 13 real photos (3.4,
+5.5), and undo passed too (one Ctrl+Z restores the image exactly). Step 6, the automatic rule, is tuned on 13 real photos (3.4,
 5.3), and the guided mode is measured in GIMP (5.4). The facts this plan rests on, with sources:
 [docs/research.md](docs/research.md) and
 [docs/patents.md](docs/patents.md). The open questions of section 7 got
@@ -479,7 +478,8 @@ All 13 pass (2026-11-18). Times: 0.36 to 0.57 s for 8 to 11 megapixels.
   of the result (03-result.png, in the README as docs/result.png). The
   first run found the dialog 936 pixels high with OK off a 900 pixel
   screen: the preview now sits beside the settings (617 pixels).
-- (written 2026-11-18, not yet run: for David) **Undo**: after OK, a
+- (done, run 2026-11-18: all passed, one press, the pixels identical,
+  the image clean again) **Undo**: after OK, a
   click on the canvas outside the image (`GUI_CANVAS`, 150,780 by
   docs/result.png), Escape, then Ctrl+Z (tests/gui/key.mjs, the same as
   gimp-layerfx's: cdp.mjs has no modifier keys) until the image changes,
