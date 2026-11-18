@@ -495,6 +495,23 @@ status_text (UpStatus status)
     }
 }
 
+/* why nothing was done, for the dialog and the message: with enough
+ * lines of a kind but "not enough lines", the automatic mode found that
+ * they do not line up after any fit (the core's AUTO_MAX_RESIDUAL: the
+ * rocks and hills of a landscape, not a building) */
+static gchar *
+nothing_text (UpStatus status, gint vertical, gint horizontal)
+{
+  if (status == UP_NOT_ENOUGH_LINES &&
+      (vertical >= UP_MIN_FIT_LINES || horizontal >= UP_MIN_FIT_LINES))
+    return g_strdup_printf ("the %d vertical and %d horizontal lines found do not line up as a "
+                            "building's do, so the automatic mode leaves the image alone; "
+                            "choose a mode or draw guide lines to correct it anyway",
+                            vertical, horizontal);
+  return g_strdup_printf ("%s (%d vertical and %d horizontal lines found; at least %d of a kind "
+                          "are needed)", status_text (status), vertical, horizontal, UP_MIN_FIT_LINES);
+}
+
 /* ------------------------------------------------------------ preview */
 
 #define PREVIEW_SIZE 400   /* the longer side of the preview copy */
@@ -638,9 +655,11 @@ preview_compute (Preview *p)
                               p->params.shift_v, p->params.shift_h, p->params.shear,
                               status == UP_OK ? "" : " (fine tuning only: the fit failed)");
     else
-      text = g_strdup_printf ("Nothing to do: %s (%d vertical and %d horizontal lines; at least %d "
-                              "of a kind are needed).", status_text (status), used_v, used_h,
-                              UP_MIN_FIT_LINES);
+      {
+        gchar *why = nothing_text (status, used_v, used_h);
+        text = g_strdup_printf ("Nothing to do: %s.", why);
+        g_free (why);
+      }
     gtk_label_set_text (GTK_LABEL (p->label), text);
     g_free (text);
   }
@@ -894,9 +913,11 @@ auto_perspective_run (GimpProcedure *procedure, GimpRunMode run_mode, GimpImage 
         }
     }
   else if (status != UP_OK && run_mode == GIMP_RUN_INTERACTIVE)
-    g_message ("Auto Perspective changed nothing: %s (%d vertical and %d horizontal lines "
-               "found; at least %d of a kind are needed).",
-               status_text (status), fit.vertical, fit.horizontal, UP_MIN_FIT_LINES);
+    {
+      gchar *why = nothing_text (status, fit.vertical, fit.horizontal);
+      g_message ("Auto Perspective changed nothing: %s.", why);
+      g_free (why);
+    }
   gimp_progress_end ();
   if (run_mode != GIMP_RUN_NONINTERACTIVE)
     gimp_displays_flush ();

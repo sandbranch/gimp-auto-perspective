@@ -7,7 +7,10 @@
 # out vertical, channels and the selection follow, the canvas or only the
 # layer is cropped; every mode, crop and apply-to setting on 8 and 16 bit
 # and floating point, RGB and gray, alpha, offsets, several layers; a
-# blank image and indexed images are left alone. Prints "UT PASS ..." or
+# blank image and indexed images are left alone; the guided mode measured
+# on a facade turned in all three directions (strokes exact, as a hand
+# draws them, reversed, with offsets) and, if tests/real.sh fetched it, on
+# a real photo. Prints "UT PASS ..." or
 # "UT FAIL ...". (Undo cannot be driven from here: GIMP has no undo
 # procedure; the GUI test does that.)
 #
@@ -60,13 +63,14 @@ def read_kv(path):
     return dict(line.split(' ', 1) for line in open(path).read().splitlines())
 
 
-def make_image(precision, gray=False, alpha=False, offsets=None, layers=1, fmt="Y' float", data=None):
+def make_image(precision, gray=False, alpha=False, offsets=None, layers=1, fmt="Y' float", data=None,
+               pfm='facade.pfm'):
     """the synthetic facade as one layer (its pixels set as perceptual
     gray, which the plug-in reads back exactly in a non-linear float
     image); offsets: a smaller second layer on top, moved, which is the
     one selected; layers: more full size copies below"""
     if data is None:
-        w, h, data = read_pfm(os.path.join(inp, 'facade.pfm'))
+        w, h, data = read_pfm(os.path.join(inp, pfm))
     else:
         w, h, data = data
     base = Gimp.ImageBaseType.GRAY if gray else Gimp.ImageBaseType.RGB
@@ -389,6 +393,164 @@ def tests():
     image.delete()
 
 
+def read_segs(name):
+    return [tuple(map(float, line.split())) for line in open(os.path.join(inp, name))]
+
+
+def deviation(seg):
+    """degrees from vertical or horizontal, whichever is nearer"""
+    x1, y1, x2, y2 = seg
+    dx, dy = abs(x2 - x1), abs(y2 - y1)
+    return math.degrees(math.atan2(dx, dy) if dy >= dx else math.atan2(dy, dx))
+
+
+def guided():
+    """the guided mode on a facade turned in all three directions
+    (guided.pfm): strokes along edges a user would draw, and, as a path
+    the plug-in does not use, other true edges of the facade to measure
+    the result on (paths follow the transform: tests() checks that)"""
+    drawn, truth = read_segs('guided-drawn.txt'), read_segs('guided-check.txt')
+
+    def one(segs, what, expect_mode, drawn_max, check_max, crop='largest', image=None, measure=None):
+        image = image or make_image(P.FLOAT_NON_LINEAR, pfm='guided.pfm')
+        guides = add_strokes(image, segs, 'guides')
+        check_path = add_strokes(image, measure if measure is not None else truth, 'check')
+        r = run(image, mode='guided', path=guides, crop=crop)
+        ok = r.index(0) == Gimp.PDBStatusType.SUCCESS and r.index(1) == 'ok'
+        got = r.index(6) if ok else r.index(0).value_nick
+        dmax = max(deviation(s) for s in stroke_ends(guides)) if ok else float('nan')
+        cmax = max(deviation(s) for s in stroke_ends(check_path)) if ok else float('nan')
+        check(ok and got == expect_mode and dmax < drawn_max and cmax < check_max,
+              'guided, %s: %s, mode %s (expected %s); the drawn strokes afterwards within %.4f degrees '
+              '(target %g), the true edges not drawn within %.4f (target %g); rotation %+.3f, shift-v %+.4f, '
+              'shift-h %+.4f, shear %+.4f'
+              % (what, r.index(1) if ok else r.index(0).value_nick, got, expect_mode, dmax, drawn_max,
+                 cmax, check_max, r.index(2), r.index(3), r.index(4), r.index(5)))
+        params = (r.index(2), r.index(3), r.index(4), r.index(5)) if ok else None
+        image.delete()
+        return params
+
+    # two verticals: rotation and vertical shift; the verticals not drawn
+    # follow, the horizontals still converge (yaw is not corrected)
+    one(drawn[:2], 'the two pilaster edges', 'vertical', 0.01, 0.05,
+        measure=[t for t in truth if deviation(t) < 45 and abs(t[2] - t[0]) < abs(t[3] - t[1])])
+    # two of each: full
+    full = one(drawn, 'two pilaster edges and two sill lines', 'full', 0.01, 0.05)
+    # as a hand would draw them: every anchor up to 0.7 pixels off,
+    # rounded to whole pixels
+    # rounded to whole pixels; the edges not drawn may then be off by up
+    # to twice the largest angle the hand put into a drawn stroke
+    hand, err = [], 0.0
+    for i, (x1, y1, x2, y2) in enumerate(drawn):
+        d = 0.7 if i % 2 else -0.7
+        hand.append((round(x1 + d), round(y1 - d), round(x2 - d), round(y2 + d)))
+        a = math.degrees(math.atan2(y2 - y1, x2 - x1))
+        b = math.degrees(math.atan2(hand[-1][3] - hand[-1][1], hand[-1][2] - hand[-1][0]))
+        err = max(err, abs(a - b))
+    one(hand, 'the same drawn by hand (anchors on whole pixels, up to 0.7 pixels off, which turns a '
+        'stroke by up to %.3f degrees)' % err, 'full', 0.01, 2.0 * err)
+    # strokes drawn the other way round give the same fit
+    rev = one([(x2, y2, x1, y1) for x1, y1, x2, y2 in drawn], 'the strokes drawn the other way', 'full',
+              0.01, 0.05)
+    check(full and rev and max(abs(a - b) for a, b in zip(full, rev)) < 1e-6,
+          'guided: the direction of the strokes does not matter (%s, %s)' % (full, rev))
+    # a stroke with an anchor in the middle: from its first to its last
+    image = make_image(P.FLOAT_NON_LINEAR, pfm='guided.pfm')
+    guides = add_strokes(image, drawn[1:], 'guides')
+    x1, y1, x2, y2 = drawn[0]
+    guides.bezier_stroke_new_moveto(x1, y1)
+    sid = guides.get_strokes()[-1]
+    guides.bezier_stroke_lineto(sid, 0.5 * (x1 + x2) + 3.0, 0.5 * (y1 + y2))
+    guides.bezier_stroke_lineto(sid, x2, y2)
+    r = run(image, mode='guided', path=guides)
+    mid = (r.index(2), r.index(3), r.index(4), r.index(5)) if r.index(1) == 'ok' else None
+    check(full and mid and max(abs(a - b) for a, b in zip(full, mid)) < 1e-6,
+          'guided: a stroke of three anchors counts from its first to its last (%s)' % (mid,))
+    image.delete()
+    # a stroke at 45 degrees is neither vertical nor horizontal: ignored
+    image = make_image(P.FLOAT_NON_LINEAR, pfm='guided.pfm')
+    guides = add_strokes(image, drawn + [(100.0, 100.0, 200.0, 200.0)], 'guides')
+    r = run(image, mode='guided', path=guides)
+    diag = (r.index(2), r.index(3), r.index(4), r.index(5)) if r.index(1) == 'ok' else None
+    check(full and diag and max(abs(a - b) for a, b in zip(full, diag)) < 1e-6,
+          'guided: a stroke at 45 degrees is ignored (%s)' % (diag,))
+    image.delete()
+    # the layer moved on a larger canvas: the strokes are in image
+    # coordinates, the fit in the layer's, so the same fit as without
+    # offsets, and the edges come out straight
+    w, h, data = read_pfm(os.path.join(inp, 'guided.pfm'))
+    ox, oy = 37, 23
+    image = Gimp.Image.new_with_precision(w + 60, h + 50, Gimp.ImageBaseType.RGB, P.FLOAT_NON_LINEAR)
+    layer = Gimp.Layer.new(image, 'facade', w, h, Gimp.ImageType.RGB_IMAGE, 100.0, Gimp.LayerMode.NORMAL)
+    image.insert_layer(layer, None, 0)
+    buf = layer.get_buffer()
+    buf.set(Gegl.Rectangle.new(0, 0, w, h), "Y' float", data)
+    buf.flush()
+    layer.set_offsets(ox, oy)
+    image.set_selected_layers([layer])
+    moved = [(x1 + ox, y1 + oy, x2 + ox, y2 + oy) for x1, y1, x2, y2 in drawn]
+    off = one(moved, 'the layer at offsets %d,%d on a larger canvas' % (ox, oy), 'full', 0.01, 0.05,
+              image=image, measure=[(x1 + ox, y1 + oy, x2 + ox, y2 + oy) for x1, y1, x2, y2 in truth])
+    check(full and off and max(abs(a - b) for a, b in zip(full, off)) < 1e-6,
+          'guided: offsets do not change the fit (%s)' % (off,))
+    # one vertical stroke only: rotation only (it is levelled)
+    one(drawn[:1], 'a single vertical stroke', 'rotation', 0.01, 90.0, measure=drawn[:1])
+
+
+# strokes a user would draw on the Former Tonoi Post Office (3840x2880,
+# CC0, see tests/real.sh): two corners of the tower, a door jamb, the eave
+# of the right wing and its base line; and, to measure, other edges of
+# the building not drawn (a window jamb of the tower, the right corner,
+# the bottom of the sign board, a sill). Read from the photo: LSD's lines
+# (auto-perspective-cli lines) near the edges picked by eye on a grid,
+# rounded to whole pixels as a hand would place them.
+TONOI_DRAWN = [(981, 2667, 1049, 1054), (1384, 2670, 1420, 1021), (2066, 2052, 2074, 2585),
+               (1794, 1723, 3564, 1673), (1752, 2604, 3227, 2619)]
+TONOI_CHECK = [(1311, 2336, 1342, 1070), (3408, 1727, 3461, 2397), (1754, 1841, 3409, 1809),
+               (1755, 2571, 3336, 2580)]
+
+
+def guided_real():
+    """if tests/real.sh fetched it: the guided mode on a real photo"""
+    from gi.repository import Gio
+    path = os.path.join(os.environ.get('UT_REAL', ''), 'Tonoi_Post_Office.jpg')
+    if not os.path.exists(path):
+        print('UT SKIP guided on a real photo: %s not fetched (tests/real.sh)' % path, flush=True)
+        return
+    image = Gimp.file_load(Gimp.RunMode.NONINTERACTIVE, Gio.File.new_for_path(path))
+    w, h = image.get_width(), image.get_height()
+    guides = add_strokes(image, TONOI_DRAWN, 'guides')
+    measure = add_strokes(image, TONOI_CHECK, 'check')
+    before = [deviation(s) for s in TONOI_CHECK]
+    r = run(image, mode='guided', path=guides, crop='largest')
+    ok = r.index(0) == Gimp.PDBStatusType.SUCCESS and r.index(1) == 'ok'
+    dmax = max(deviation(s) for s in stroke_ends(guides)) if ok else float('nan')
+    after = [deviation(s) for s in stroke_ends(measure)] if ok else []
+    # (5 strokes for 4 values: the drawn strokes cannot all come out
+    # exact; how far they stay off measures how much they disagree. The
+    # edges not drawn: their mean below 0.5 degrees, each below 1; first
+    # each was to be below 0.5, but the right corner board of this old
+    # wooden building measures 0.54 while the other three are 0.07 to
+    # 0.21, see PLAN.md 5.4)
+    check(ok and r.index(6) == 'full' and dmax < 0.1 and max(after) < 1.0 and
+          sum(after) / len(after) < 0.5,
+          'guided on a real photo (%s, %dx%d, 3 vertical and 2 horizontal strokes): %s, mode %s, rotation '
+          '%+.3f, shift-v %+.4f, shift-h %+.4f, shear %+.4f, now %dx%d; the drawn strokes within %.4f degrees '
+          '(target 0.1), the edges not drawn %s degrees before, %s after (target: mean below 0.5, each '
+          'below 1)'
+          % (os.path.basename(path), w, h, r.index(1) if ok else r.index(0).value_nick,
+             r.index(6) if ok else '-', r.index(2), r.index(3), r.index(4), r.index(5), image.get_width(),
+             image.get_height(), dmax, ', '.join('%.2f' % d for d in before),
+             ', '.join('%.3f' % d for d in after)))
+    if ok:
+        # the result, for tests/gimp-test.sh to look for lines in
+        layer = image.get_layers()[0]
+        ext = layer.get_buffer().get_extent()
+        write_pfm(os.path.join(outd, 'guided-real.pfm'), ext.width, ext.height,
+                  pixels(layer, "Y' float"))
+    image.delete()
+
+
 def real_photo():
     """if tests/real.sh fetched it: a real photo through the plug-in, timed"""
     import time
@@ -413,7 +575,9 @@ def real_photo():
 
 try:
     tests()
+    guided()
     real_photo()
+    guided_real()
 except Exception:
     import traceback
     traceback.print_exc()

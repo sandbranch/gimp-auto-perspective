@@ -7,8 +7,11 @@
 # out vertical, channels, paths and the selection follow, the canvas or
 # the layer is cropped, every mode, crop and apply-to setting on 8 and 16
 # bit and floating point, RGB and gray, alpha, offsets, several layers;
-# blank images and indexed ones are left alone. Afterwards the corrected
-# facade is fitted again by auto-perspective-cli: nothing left to fix.
+# blank images and indexed ones are left alone; the guided mode with
+# strokes along known edges of a facade and of a real photo, measured on
+# edges not drawn. Afterwards the corrected facade is fitted again by
+# auto-perspective-cli (nothing left to fix), and the lines of the guided
+# real photo are found again and measured.
 #
 #   tests/gimp-test.sh            as usual
 #   tests/gimp-test.sh --asan     the plug-in built with AddressSanitizer and
@@ -78,7 +81,22 @@ def edge(u0, v0, u1, v1):
     return '%.6f %.6f %.6f %.6f' % (x[0], y[0], x[1], y[1])
 with open(os.path.join(inp, 'edges.txt'), 'w') as fp:
     fp.write(edge(-4, -4, -4, 5) + '\n' + edge(4, -4, 4, 5) + '\n' + edge(-5, 0.8, 5, 0.8) + '\n')
+# the guided mode (PLAN.md 3.5): a second facade, turned in all three
+# directions; the edges a user would draw (two pilaster edges, two sill
+# lines) and, to measure the result, others that are not drawn
+w, h = 480, 360
+R = rec.synth.rot(1.5, 8, 14)
+f = 28.0 / 36.0 * w
+with open(os.path.join(inp, 'guided-drawn.txt'), 'w') as fp:
+    for e in ((-6, -6, -6, 6), (6, -6, 6, 6), (-6, -5.2, 6, -5.2), (-6, 3.8, 6, 3.8)):
+        fp.write(edge(*e) + '\n')
+with open(os.path.join(inp, 'guided-check.txt'), 'w') as fp:
+    for e in ((-4, -7, -4, 7), (-2, -7, -2, 7), (0, -7, 0, 7), (2, -7, 2, 7), (4, -7, 4, 7),
+              (-5.5, -6, -5.5, 6), (4.5, -6, 4.5, 6),
+              (-7, -2.2, 7, -2.2), (-7, 0.8, 7, 0.8), (-7, 2.4, 7, 2.4), (-7, 6.8, 7, 6.8)):
+        fp.write(edge(*e) + '\n')
 PY
+python3 "$here/synth.py" --size=480,360 --roll=1.5 --pitch=8 --yaw=14 "$g/in/guided.pfm" || exit 1
 # what auto-perspective-cli finds on the same pixels
 cli=$top/$build/auto-perspective-cli
 for m in auto vertical full; do
@@ -115,6 +133,29 @@ PY
 else
     echo "UT FAIL no corrected facade from GIMP ($g/out/gimp-vertical.pfm)"
     status=1
+fi
+# the guided result on the real photo (when tests/real.sh fetched it): the
+# lines found in it again, the strongest of each kind (as tests/real.py
+# measures)
+if [ -f "$g/out/guided-real.pfm" ]; then
+    "$cli" lines "$g/out/guided-real.pfm" >"$g/out/guided-real-lines.txt"
+    python3 - "$here" "$g/out/guided-real-lines.txt" <<'PY' || status=1
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location('real', os.path.join(sys.argv[1], 'real.py'))
+real = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(real)
+segs = []
+for line in open(sys.argv[2]):
+    r = line.split()
+    segs.append((float(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[5]), int(r[6]), int(r[7])))
+mv, xv, nv = real.strongest_deviation(segs, 1)
+mh, xh, nh = real.strongest_deviation(segs, 2)
+ok = mv is not None and mh is not None and mv < 0.5 and mh < 0.5
+print('UT %s guided on the real photo, the lines found again afterwards: the %d strongest verticals '
+      'weighted median %.3f degrees (largest %.3f), the %d strongest horizontals %.3f (largest %.3f); '
+      'target below 0.5' % ('PASS' if ok else 'FAIL', nv, mv, xv, nh, mh, xh))
+sys.exit(0 if ok else 1)
+PY
 fi
 for report in "$out"/sanitizer/*; do
     [ -e "$report" ] || continue
