@@ -406,7 +406,7 @@ Horizontal and Full modes have not yet been measured on a real photo.
    combination); (b) port OpenCV's BSD-licensed `lsd.cpp` to C; (c)
    write LSD from the IPOL paper with the author's MIT NFA code. I
    recommend (b) or (c) for a plain GPL plug-in. Which?
-   *Default chosen 2026-11-18 while David was away; easy to change:* (b), the plug-in stays plain GPL-3.0-or-later, darktable's
+   **Decided 2026-11-18 (David): keep (b).** The plug-in stays plain GPL-3.0-or-later, darktable's
    AGPL LSD is not used. Checked first (research.md, section 2): the
    file header of OpenCV's current lsd.cpp is the 3-clause BSD licence;
    OpenCV removed the file on 2019-03-01 (commit 3ba49ccecc) because
