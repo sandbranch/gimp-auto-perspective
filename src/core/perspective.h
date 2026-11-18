@@ -146,6 +146,11 @@ void up_remove_outliers (UpLine *lines, int count, int width, int height);
 UpStatus up_fit (const UpLine *lines, int count, int width, int height, UpMode mode,
                  const UpLens *lens, UpParams *params, UpFitResult *result);
 
+/* the mode drawn lines call for (PLAN.md 3.5): Full with 2 or more of
+ * each kind, Vertical or Horizontal with 2 or more of one kind,
+ * Rotation with fewer (it then needs one line at least) */
+UpMode up_mode_for_lines (const UpLine *lines, int count);
+
 /* ashift's cost of the parameters for these lines (0 when every used
  * vertical line is vertical and every used horizontal one horizontal):
  * vertical and/or horizontal lines as the flags say (1 vertical,

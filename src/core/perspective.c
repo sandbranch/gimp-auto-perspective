@@ -506,6 +506,26 @@ crop_share (const UpParams *p, const UpLens *lens, int w, int h)
   return (double) r.width * r.height / ((double) w * h);
 }
 
+UpMode
+up_mode_for_lines (const UpLine *lines, int count)
+{
+  int nv = 0, nh = 0;
+
+  for (int i = 0; lines && i < count; i++)
+    if (! lines[i].outlier)
+      {
+        nv += lines[i].type == UP_LINE_VERTICAL;
+        nh += lines[i].type == UP_LINE_HORIZONTAL;
+      }
+  if (nv >= UP_MIN_FIT_LINES && nh >= UP_MIN_FIT_LINES)
+    return UP_MODE_FULL;
+  if (nv >= UP_MIN_FIT_LINES)
+    return UP_MODE_VERTICAL;
+  if (nh >= UP_MIN_FIT_LINES)
+    return UP_MODE_HORIZONTAL;
+  return UP_MODE_ROTATION;
+}
+
 UpStatus
 up_fit (const UpLine *lines, int count, int width, int height, UpMode mode,
         const UpLens *lens, UpParams *params, UpFitResult *result)

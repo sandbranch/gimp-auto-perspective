@@ -86,7 +86,10 @@ else:
     config.set_core_object_array('drawables', image.get_selected_drawables())
     result = proc.run(config)
     Gimp.displays_flush()
+    ok = result.index(0) == Gimp.PDBStatusType.SUCCESS
     write('result.txt', ['status %s' % result.index(0).value_nick,
+                         'fit %s' % (result.index(1) if ok else '-'),
+                         'mode %s' % (result.index(6) if ok else '-'),
                          'layers %d' % len(image.get_layers()),
                          'size %dx%d' % (image.get_width(), image.get_height()),
                          'unchanged %s' % ('yes' if checksum(image) == before else 'no')])

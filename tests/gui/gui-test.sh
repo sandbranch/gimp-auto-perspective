@@ -4,7 +4,8 @@
 #
 #   menu    Image > Transform open: Auto Perspective... under Arbitrary Rotation
 #   dialog  the synthetic facade, Image > Transform > Auto Perspective..., OK:
-#           success, and (while this is a skeleton) the image unchanged
+#           success, the fit ok (the facade's camera looks up 10 degrees,
+#           so automatic picks vertical), the image corrected and cropped
 #
 # Run tests/gimp-test.sh first (it installs the plug-in into the test
 # profile). Needs a headless Chrome, node 22 and ../gimp-devtools (or
@@ -79,8 +80,13 @@ session () {
         fi
         result_is "status success" "dialog: status success"
         result_is "layers 1" "dialog: still one layer"
-        result_is "size 640x480" "dialog: the size unchanged"
-        result_is "unchanged yes" "dialog (skeleton): the pixels unchanged";;
+        result_is "fit ok" "dialog: the fit found its lines"
+        result_is "mode vertical" "dialog: automatic chose vertical"
+        grep -q '^size 640x480$' "$out/result.txt" &&
+          fail "dialog: the canvas was not cropped: $(tr '\n' ' ' < "$out/result.txt")" ||
+          pass "dialog: the canvas was cropped ($(grep '^size' "$out/result.txt"))"
+        result_is "unchanged no" "dialog: the image was corrected"
+        $cdp "$view" wait:800 shot:"$out/03-result.png" >/dev/null;;
     esac
     touch "$out/done"
     stop_all

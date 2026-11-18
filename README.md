@@ -6,12 +6,16 @@ fit a rotation, lens shifts and a shear that make them so, and transform
 the image. The method is that of darktable's "rotate and perspective"
 module (ashift, after ShiftN).
 
-**Status: the core works, the plug-in does not apply it yet.** Line
-detection (LSD), the fit (ashift's model, cost and RANSAC, our own
-Nelder-Mead), the crop and the warp run in the core and on the command
-line, tested against darktable's homography, LSD 1.6's output and
-facades rendered through a camera with known angles: after the fit the
-facade edges are straight within 0.02 degrees (PLAN.md, section 5.2).
+**Status: it corrects; the dialog has no preview yet.** Line detection
+(LSD), the fit (ashift's model, cost and RANSAC, our own Nelder-Mead),
+the crop and the warp run in the core and on the command line, tested
+against darktable's homography, LSD 1.6's output and facades rendered
+through a camera with known angles: after the fit the facade edges are
+straight within 0.02 degrees (PLAN.md, section 5.2). The plug-in
+applies the result to the whole image (layers, channels, paths, the
+selection) or to the layer, in one undo group, and crops; in GIMP the
+facade's true edges come out vertical within 0.005 degrees (5.4). Not
+yet tried on real photos.
 The plan is in [PLAN.md](PLAN.md); the research behind it in
 [docs/research.md](docs/research.md) and
 [docs/patents.md](docs/patents.md).
@@ -31,9 +35,10 @@ The plan is in [PLAN.md](PLAN.md); the research behind it in
   `cost`, `lsd`.
 - `src/plugin/main.c`: **Image > Transform > Auto Perspective...**
   (`plug-in-auto-perspective`) with its modes (Automatic, Vertical, Horizontal,
-  Full, Rotation only, Guided by a path), crop, apply-to and
-  interpolation, and a dialog without preview yet. It reads the layer or
-  the path and calls the core, so for now the image stays as it is.
+  Full, Rotation only, Guided by a path), crop, apply-to,
+  interpolation, focal length (0: from EXIF) and lens dependence, and a
+  dialog without preview yet. It returns the status, the four values
+  and the mode used, so it can be scripted.
 - Tests, all isolated from your own folders:
   - `tests/check.sh`: unit tests of the core, as usual and under
     AddressSanitizer and UBSan, `auto-perspective-cli` under the
@@ -43,7 +48,8 @@ The plan is in [PLAN.md](PLAN.md); the research behind it in
     at test time into tests/output, AGPL, never shipped); not part of
     `run.sh`.
   - `tests/gimp-test.sh` (also `--asan`): the plug-in in GIMP without a
-    window: registration, and every mode leaves the image unchanged.
+    window: registration, the same parameters and pixels as the command
+    line, paths, channels and the selection, every mode and format.
   - `tests/gui/gui-test.sh`: the menu and the dialog in GIMP's window on
     Broadway (needs Chrome and node).
   - `tests/run.sh`: all of them.

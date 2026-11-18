@@ -6,9 +6,11 @@ so, and apply it. A port of the method of darktable's "rotate and
 perspective" module (ashift, GPL-3.0-or-later, after ShiftN), as a GIMP
 3 plug-in with a C core, in the shape of gimp-fusion and gimp-lqr-tng.
 
-**Status (2026-11-18): the core works** (steps 1 to 3 of section 6:
-LSD, model, fit, RANSAC, crop, warp, with their tests and the measured
-recovery numbers in 5.2). The facts this plan rests on, with sources:
+**Status (2026-11-18): the core works and the plug-in applies it**
+(steps 1 to 4 of section 6: LSD, model, fit, RANSAC, crop, warp, with
+their tests and the measured recovery numbers in 5.2; the transform in
+GIMP, non-interactive, with the tests of 5.4). The dialog has no
+preview yet (step 5). The facts this plan rests on, with sources:
 [docs/research.md](docs/research.md) and
 [docs/patents.md](docs/patents.md). The open questions of section 7 got
 defaults while David was away; each is marked there and easy to change.
@@ -54,7 +56,8 @@ One dialog:
 
 The procedure also runs non-interactively with the same arguments and
 returns the status and the four values, so it can be scripted and
-batched (BIMP). It already does, in the skeleton.
+batched (BIMP). It does: the arguments as above, and it returns the
+status, the four values and the mode used.
 
 ## 2. How it is built
 
@@ -172,13 +175,13 @@ tuned on real photos (step 6).
 ### 3.5 The guided mode
 
 Each stroke of the chosen path is a segment from its first to its last
-anchor (done in the skeleton), classified like detected lines, weight 1.
-What is fitted follows from what was drawn: 2 or more vertical lines
-free rotation and vertical shift; 2 or more horizontal lines free
-rotation and horizontal shift; both kinds give Full; a single line of
-either kind gives Rotation only. A closed stroke of 4 anchors could
-count as a rectangle (ashift's "draw rectangle": its 4 sides). No RANSAC
-on drawn lines.
+anchor, classified like detected lines, weight 1. What is fitted
+follows from what was drawn (`up_mode_for_lines`): 2 or more vertical
+lines free rotation and vertical shift; 2 or more horizontal lines free
+rotation and horizontal shift; both kinds give Full; fewer give
+Rotation only. A closed stroke of 4 anchors counts as a rectangle
+(ashift's "draw rectangle": its 4 sides). No RANSAC on drawn lines.
+All done and tested in GIMP (5.4).
 
 ### 3.6 Crop
 
@@ -197,6 +200,9 @@ plug-in today: GIMP 3.2.6 refuses `gegl:transform` as a drawable filter
 ("Filters from category "transform" are hidden", tried), and GEGL has
 no perspective op.
 
+Done (step 4), as described below; the crop is the core's (3.6), so a
+preview can show exactly what is applied.
+
 1. `gimp_context_push`; interpolation from the argument; transform
    direction forward; transform resize "Adjust" (or GIMP's crop, 3.6).
 2. One undo group.
@@ -204,7 +210,14 @@ no perspective op.
    image coordinates), every channel, every path, with
    `gimp_item_transform_matrix`; then the canvas to the crop, or to all
    layers when not cropping. **Layer**: only that layer, then its own
-   crop.
+   crop. As built: the matrix is the layer's (lines found in the layer)
+   moved into image coordinates by the layer's offsets; with a crop,
+   `gimp_image_resize_to_layers` first (so the rectangle lies inside the
+   canvas), then `gimp_image_crop`, which crops the layers too; without
+   one, `gimp_image_resize` to the transformed layer's bounding box. For
+   the layer alone, `gimp_layer_resize` to the rectangle. Channels are
+   clipped to the canvas by GIMP when transformed, so with "crop:
+   nothing" a channel loses what moves outside the old canvas.
 4. A selection makes `gimp_item_transform_matrix` cut a floating
    selection: the plug-in saves the selection to a channel, clears it,
    transforms, and gives the user back a transformed selection
@@ -303,22 +316,32 @@ megapixel images. Screenshots for the README. Never the user's photos.
 
 - (done) registration: the procedure, the menu path, the arguments,
   the return values, the six modes.
-- (done, skeleton) every mode, crop and apply-to setting leaves the
-  image as it was, on 8 and 16 bit and float, RGB and gray, alpha,
-  layer offsets; guided without a path is a calling error, with a path
-  of 3 strokes it succeeds.
-- Once it works: the synthetic facade corrected in GIMP, then its lines
-  measured again by `auto-perspective-cli lines` (straightness as in 5.2); the
-  result against `auto-perspective-cli warp` pixel by pixel within the
-  difference between GIMP's and our interpolation; the parameters
-  returned equal those of `auto-perspective-cli fit` exactly; undo restores the
-  image; channels, paths and the selection follow; images with several
-  layers; indexed images refused or converted.
+- (done) guided without a path is a calling error.
+- (done, 127 checks, also with ASan) The synthetic facade corrected in
+  GIMP: the parameters returned equal those of `auto-perspective-cli
+  fit` on the same pixels to all 9 printed digits (auto, vertical,
+  full); the canvas is the CLI's crop rectangle; the pixels against
+  `auto-perspective-cli warp` (both linear): mean difference 0.0019,
+  99th percentile 0.048 (gray 0..1); the corrected facade fitted again
+  by the CLI: rotation 0.0011 degrees, shift 0.00002, nothing left. The
+  facade's true vertical edges drawn as a path are vertical afterwards
+  within 0.0042 degrees (paths follow); the selection follows (its
+  bounds move), no floating selection, the saved channel removed; three
+  layers all transformed and cropped; apply-to layer leaves the canvas
+  and the other layers alone; every mode, crop and apply-to setting on
+  8 and 16 bit and float, RGB and gray, alpha, offsets; guided with the
+  true edges (vertical, the strokes exactly vertical afterwards) and
+  with a closed 4 anchor stroke (full); a blank image unchanged and not
+  dirty; indexed images refused (the procedure takes RGB* and GRAY*).
+- Undo cannot be driven from a script (GIMP has no undo procedure): it
+  is for the GUI test (one undo group is used).
 
 ### 5.5 GUI on Broadway (`tests/gui/gui-test.sh`)
 
-- (done) Image > Transform shows Auto Perspective...; the dialog opens; OK
-  succeeds and (skeleton) leaves the image unchanged.
+- (done) Image > Transform shows Auto Perspective...; the dialog opens.
+- (updated 2026-11-18, not run yet: David runs the GUI tests) OK
+  succeeds, the fit is ok with mode vertical, the canvas is cropped and
+  the image changed; a screenshot of the result (03-result.png).
 - Once it works: the preview draws (a screenshot compared with the
   result), switching modes changes it, the path chooser lists the
   image's paths, Cancel changes nothing, OK applies what the preview
@@ -330,7 +353,7 @@ megapixel images. Screenshots for the README. Never the user's photos.
 2. (done) **Model and fit**: homography with the ashift oracle, cost,
    Nelder-Mead, RANSAC; the recovery tests (5.2). `auto-perspective-cli fit`.
 3. (done) **Crop and warp** in the core: `auto-perspective-cli warp`; crop tests.
-4. **Applying in GIMP** (section 4), non-interactive; GIMP tests (5.4).
+4. (done) **Applying in GIMP** (section 4), non-interactive; GIMP tests (5.4).
 5. **The dialog with the preview** and the fine tuning; GUI tests.
 6. **Automatic mode** rule tuned on synthetic and real images (5.3).
 7. README with screenshots, then offer upstream (GIMP issue #2026 is

@@ -548,6 +548,10 @@ test_fit (void)
          up_fit (lines, 4, 100, 100, UP_MODE_COUNT, NULL, &p, &r) == UP_ERROR &&
          up_fit (NULL, 3, 100, 100, UP_MODE_FULL, NULL, &p, &r) == UP_ERROR,
          "fit: bad size, mode or lines give UP_ERROR");
+  check (up_mode_for_lines (lines, 4) == UP_MODE_FULL && up_mode_for_lines (lines, 2) == UP_MODE_VERTICAL &&
+         up_mode_for_lines (lines + 2, 2) == UP_MODE_HORIZONTAL && up_mode_for_lines (lines, 1) == UP_MODE_ROTATION &&
+         up_mode_for_lines (lines + 1, 2) == UP_MODE_ROTATION && up_mode_for_lines (NULL, 0) == UP_MODE_ROTATION,
+         "mode for drawn lines: full, vertical, horizontal, rotation");
   lines[0].outlier = 1;
   check (up_fit (lines, 2, 100, 100, UP_MODE_VERTICAL, NULL, &p, &r) == UP_NOT_ENOUGH_LINES,
          "fit: outliers do not count");
